@@ -51,11 +51,28 @@ def create_app(config_object=None):
 
     from app import sockets as _sockets  # noqa: F401 — registra los manejadores de Socket.IO
 
-    _register_error_handlers(app)
-    _register_security_headers(app)
-    _register_cli(app)
+    with app.app_context():
+    from app.models import User
 
-    return app
+    username = os.environ.get("ADMIN_USERNAME")
+    email = os.environ.get("ADMIN_EMAIL", "")
+    password = os.environ.get("ADMIN_PASSWORD")
+
+    if username and password:
+        if not User.query.filter_by(username=username).first():
+            user = User(
+                username=username,
+                email=email,
+                is_superuser=True,
+                is_staff=True
+            )
+
+            user.set_password(password)
+
+            db.session.add(user)
+            db.session.commit()
+
+            app.logger.info(f'Administrador "{username}" creado correctamente.')
 
 
 def _configure_logging(app):

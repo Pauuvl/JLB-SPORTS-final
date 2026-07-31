@@ -8,16 +8,24 @@ services:
     name: jlb-sports
     env: python
     plan: free
+
     buildCommand: "./build.sh"
+
+    preDeployCommand: "flask create-admin"
+
     startCommand: "gunicorn --worker-class gthread --workers 1 --threads 4 --timeout 120 wsgi:app --bind 0.0.0.0:$PORT --log-file -"
+
     envVars:
       - key: FLASK_ENV
         value: production
+
       - key: SECRET_KEY
         generateValue: true
+
       - key: DATABASE_URL
         fromDatabase:
           name: jlb-sports-db
           property: connectionString
+
       - key: PYTHON_VERSION
         value: 3.12.7

@@ -30,7 +30,7 @@ def create_app(config_object=None):
     def load_user(user_id):
         return db.session.get(User, int(user_id))
 
-    # ── Blueprints (mismos nombres de URL que el proyecto Django) ──
+    # ── Blueprints ───────────────────────────────────────────────
     from app.blueprints.auth.routes import bp as auth_bp
     from app.blueprints.dashboard.routes import bp as dashboard_bp
     from app.blueprints.inventory.routes import bp as inventory_bp
@@ -49,47 +49,67 @@ def create_app(config_object=None):
     app.register_blueprint(pricing_bp, url_prefix='/pricing')
     app.register_blueprint(quotes_bp, url_prefix='/quotes')
 
-   from app import sockets as _sockets  # noqa: F401 — registra los manejadores de Socket.IO
+    from app import sockets as _sockets  # noqa: F401
 
-_register_error_handlers(app)
-_register_security_headers(app)
-_register_cli(app)
+    _register_error_handlers(app)
+    _register_security_headers(app)
+    _register_cli(app)
 
-with app.app_context():
-    from app.models import User
+    # ------------------------------------------------------------
+    # Crear administrador automáticamente si no existe
+    # ------------------------------------------------------------
+    with app.app_context():
+        from app.models import User
 
-    username = os.environ.get("ADMIN_USERNAME")
-    email = os.environ.get("ADMIN_EMAIL", "")
-    password = os.environ.get("ADMIN_PASSWORD")
+        username = os.environ.get("ADMIN_USERNAME")
+        email = os.environ.get("ADMIN_EMAIL", "")
+        password = os.environ.get("ADMIN_PASSWORD")
 
-    if username and password:
-        if not User.query.filter_by(username=username).first():
-            user = User(
-                username=username,
-                email=email,
-                is_superuser=True,
-                is_staff=True
-            )
+        if username and password:
+            admin = User.query.filter_by(username=username).first()
 
-            user.set_password(password)
+            if admin is None:
+                admin = User(
+                    username=username,
+                    email=email,
+                    is_superuser=True,
+                    is_staff=True
+                )
 
-            db.session.add(user)
-            db.session.commit()
+                admin.set_password(password)
 
-            app.logger.info(f'Administrador "{username}" creado correctamente.')
+                db.session.add(admin)
+                db.session.commit()
 
-return app
+                app.logger.info(
+                    f'Administrador "{username}" creado automáticamente.'
+                )
+
+    return app
+
+
 def _configure_logging(app):
     level = getattr(logging, app.config.get('LOG_LEVEL', 'INFO'), logging.INFO)
-    handler = logging.StreamHandler(sys.stdout) if app.config.get('LOG_TO_STDOUT', True) else logging.NullHandler()
-    formatter = logging.Formatter('[%(asctime)s] %(levelname)s in %(module)s: %(message)s')
+    handler = (
+        logging.StreamHandler(sys.stdout)
+        if app.config.get('LOG_TO_STDOUT', True)
+        else logging.NullHandler()
+    )
+
+    formatter = logging.Formatter(
+        '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
+    )
+
     handler.setFormatter(formatter)
+
     app.logger.handlers = [handler]
     app.logger.setLevel(level)
+
     logging.getLogger('werkzeug').setLevel(level)
 
 
 def _register_error_handlers(app):
+
     @app.errorhandler(404)
     def not_found(e):
         return render_template('errors/404.html'), 404
@@ -106,23 +126,37 @@ def _register_error_handlers(app):
 
 
 def _register_security_headers(app):
-    """Cabeceras básicas de seguridad para producción (equivalente a
-    django SecurityMiddleware: X-Frame-Options, nosniff, etc.)."""
+    """Cabeceras básicas de seguridad."""
 
     @app.after_request
     def set_secure_headers(response):
-        response.headers.setdefault('X-Content-Type-Options', 'nosniff')
-        response.headers.setdefault('X-Frame-Options', 'DENY')
-        response.headers.setdefault('Referrer-Policy', 'same-origin')
+        response.headers.setdefault(
+            'X-Content-Type-Options',
+            'nosniff'
+        )
+        response.headers.setdefault(
+            'X-Frame-Options',
+            'DENY'
+        )
+        response.headers.setdefault(
+            'Referrer-Policy',
+            'same-origin'
+        )
+
         if app.config.get('PREFERRED_URL_SCHEME') == 'https':
-            response.headers.setdefault('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+            response.headers.setdefault(
+                'Strict-Transport-Security',
+                'max-age=31536000; includeSubDomains'
+            )
+
         return response
 
 
 def _register_cli(app):
+
     @app.cli.command('create-admin')
     def create_admin():
-        """Crea un superusuario interactivo: flask create-admin"""
+        """Crea un superusuario interactivo."""
         import getpass
         from app.models import User
 
@@ -134,24 +168,48 @@ def _register_cli(app):
             print(f'El usuario "{username}" ya existe.')
             return
 
-        user = User(username=username, email=email, is_superuser=True, is_staff=True)
+        user = User(
+            username=username,
+            email=email,
+            is_superuser=True,
+            is_staff=True
+        )
+
         user.set_password(password)
+
         db.session.add(user)
         db.session.commit()
+
         print(f'Superusuario "{username}" creado correctamente.')
 
     @app.cli.command('seed-demo')
     def seed_demo():
-        """Crea datos mínimos de ejemplo (categoría y producto) para pruebas rápidas."""
+        """Crea datos mínimos de ejemplo."""
         from app.models import Category, Product
+
         if Category.query.count() == 0:
-            cat = Category(name='General', description='Categoría de ejemplo')
+
+            cat = Category(
+                name='General',
+                description='Categoría de ejemplo'
+            )
+
             db.session.add(cat)
             db.session.commit()
-            db.session.add(Product(name='Producto de ejemplo', category_id=cat.id,
-                                    cost_price=10000, sale_price=15000, stock_quantity=20, min_stock=5))
+
+            db.session.add(
+                Product(
+                    name='Producto de ejemplo',
+                    category_id=cat.id,
+                    cost_price=10000,
+                    sale_price=15000,
+                    stock_quantity=20,
+                    min_stock=5
+                )
+            )
+
             db.session.commit()
             print('Datos de ejemplo creados.')
+
         else:
             print('Ya existen datos; no se hizo nada.')
-

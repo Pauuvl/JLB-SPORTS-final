@@ -49,9 +49,13 @@ def create_app(config_object=None):
     app.register_blueprint(pricing_bp, url_prefix='/pricing')
     app.register_blueprint(quotes_bp, url_prefix='/quotes')
 
-    from app import sockets as _sockets  # noqa: F401 — registra los manejadores de Socket.IO
+   from app import sockets as _sockets  # noqa: F401 — registra los manejadores de Socket.IO
 
-    with app.app_context():
+_register_error_handlers(app)
+_register_security_headers(app)
+_register_cli(app)
+
+with app.app_context():
     from app.models import User
 
     username = os.environ.get("ADMIN_USERNAME")
@@ -74,7 +78,7 @@ def create_app(config_object=None):
 
             app.logger.info(f'Administrador "{username}" creado correctamente.')
 
-
+return app
 def _configure_logging(app):
     level = getattr(logging, app.config.get('LOG_LEVEL', 'INFO'), logging.INFO)
     handler = logging.StreamHandler(sys.stdout) if app.config.get('LOG_TO_STDOUT', True) else logging.NullHandler()

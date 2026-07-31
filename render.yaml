@@ -9,7 +9,7 @@ services:
     env: python
     plan: free
     buildCommand: "./build.sh"
-    startCommand:  "gunicorn -k eventlet -w 1 wsgi:app --bind 0.0.0.0:$PORT --log-file -"
+  startCommand: "gunicorn --worker-class gthread --workers 1 --threads 4 --timeout 120 wsgi:app --bind 0.0.0.0:$PORT --log-file -"
     envVars:
       - key: FLASK_ENV
         value: production

@@ -51,12 +51,35 @@ def create_app(config_object=None):
 
     from app import sockets as _sockets  # noqa: F401 — registra los manejadores de Socket.IO
 
-    _register_error_handlers(app)
+        _register_error_handlers(app)
     _register_security_headers(app)
     _register_cli(app)
 
-    return app
+    with app.app_context():
+        from app.models import User
 
+        username = os.environ.get("ADMIN_USERNAME")
+        email = os.environ.get("ADMIN_EMAIL", "")
+        password = os.environ.get("ADMIN_PASSWORD")
+
+        if username and password:
+            admin = User.query.filter_by(username=username).first()
+
+            if admin is None:
+                admin = User(
+                    username=username,
+                    email=email,
+                    is_superuser=True,
+                    is_staff=True
+                )
+                admin.set_password(password)
+
+                db.session.add(admin)
+                db.session.commit()
+
+                app.logger.info(f'Administrador "{username}" creado correctamente.')
+
+    return app
 
 def _configure_logging(app):
     level = getattr(logging, app.config.get('LOG_LEVEL', 'INFO'), logging.INFO)
@@ -99,48 +122,59 @@ def _register_security_headers(app):
 
 
 def _register_cli(app):
-   @app.cli.command("create-admin")
-def create_admin():
-    """Crea un superusuario usando variables de entorno."""
-    from app.models import User
-    import os
+    @app.cli.command("create-admin")
+    def create_admin():
+        """Crea un superusuario usando variables de entorno."""
+        from app.models import User
+        import os
 
-    username = os.environ.get("ADMIN_USERNAME")
-    email = os.environ.get("ADMIN_EMAIL", "")
-    password = os.environ.get("ADMIN_PASSWORD")
+        username = os.environ.get("ADMIN_USERNAME")
+        email = os.environ.get("ADMIN_EMAIL", "")
+        password = os.environ.get("ADMIN_PASSWORD")
 
-    if not username or not password:
-        print("Faltan ADMIN_USERNAME o ADMIN_PASSWORD.")
-        return
+        if not username or not password:
+            print("Faltan ADMIN_USERNAME o ADMIN_PASSWORD.")
+            return
 
-    if User.query.filter_by(username=username).first():
-        print(f'El usuario "{username}" ya existe.')
-        return
+        if User.query.filter_by(username=username).first():
+            print(f'El usuario "{username}" ya existe.')
+            return
 
-    user = User(
-        username=username,
-        email=email,
-        is_superuser=True,
-        is_staff=True
-    )
+        user = User(
+            username=username,
+            email=email,
+            is_superuser=True,
+            is_staff=True
+        )
 
-    user.set_password(password)
+        user.set_password(password)
 
-    db.session.add(user)
-    db.session.commit()
+        db.session.add(user)
+        db.session.commit()
 
-    print(f'Superusuario "{username}" creado correctamente.')
-    @app.cli.command('seed-demo')
+        print(f'Superusuario "{username}" creado correctamente.')
+
+    @app.cli.command("seed-demo")
     def seed_demo():
         """Crea datos mínimos de ejemplo (categoría y producto) para pruebas rápidas."""
         from app.models import Category, Product
+
         if Category.query.count() == 0:
-            cat = Category(name='General', description='Categoría de ejemplo')
+            cat = Category(name="General", description="Categoría de ejemplo")
             db.session.add(cat)
             db.session.commit()
-            db.session.add(Product(name='Producto de ejemplo', category_id=cat.id,
-                                    cost_price=10000, sale_price=15000, stock_quantity=20, min_stock=5))
+
+            db.session.add(
+                Product(
+                    name="Producto de ejemplo",
+                    category_id=cat.id,
+                    cost_price=10000,
+                    sale_price=15000,
+                    stock_quantity=20,
+                    min_stock=5
+                )
+            )
             db.session.commit()
-            print('Datos de ejemplo creados.')
+            print("Datos de ejemplo creados.")
         else:
-            print('Ya existen datos; no se hizo nada.')
+            print("Ya existen datos; no se hizo nada.")

@@ -99,26 +99,37 @@ def _register_security_headers(app):
 
 
 def _register_cli(app):
-    @app.cli.command('create-admin')
-    def create_admin():
-        """Crea un superusuario interactivo: flask create-admin"""
-        import getpass
-        from app.models import User
+   @app.cli.command("create-admin")
+def create_admin():
+    """Crea un superusuario usando variables de entorno."""
+    from app.models import User
+    import os
 
-        username = input('Usuario: ').strip()
-        email = input('Email (opcional): ').strip()
-        password = getpass.getpass('Contraseña: ')
+    username = os.environ.get("ADMIN_USERNAME")
+    email = os.environ.get("ADMIN_EMAIL", "")
+    password = os.environ.get("ADMIN_PASSWORD")
 
-        if User.query.filter_by(username=username).first():
-            print(f'El usuario "{username}" ya existe.')
-            return
+    if not username or not password:
+        print("Faltan ADMIN_USERNAME o ADMIN_PASSWORD.")
+        return
 
-        user = User(username=username, email=email, is_superuser=True, is_staff=True)
-        user.set_password(password)
-        db.session.add(user)
-        db.session.commit()
-        print(f'Superusuario "{username}" creado correctamente.')
+    if User.query.filter_by(username=username).first():
+        print(f'El usuario "{username}" ya existe.')
+        return
 
+    user = User(
+        username=username,
+        email=email,
+        is_superuser=True,
+        is_staff=True
+    )
+
+    user.set_password(password)
+
+    db.session.add(user)
+    db.session.commit()
+
+    print(f'Superusuario "{username}" creado correctamente.')
     @app.cli.command('seed-demo')
     def seed_demo():
         """Crea datos mínimos de ejemplo (categoría y producto) para pruebas rápidas."""

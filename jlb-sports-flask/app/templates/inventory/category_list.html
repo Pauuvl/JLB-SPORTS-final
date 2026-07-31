@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% block title %}Categorías — JLB Sports{% endblock %}
+{% block topbar_title %}Categorías{% endblock %}
+
+{% block extra_css %}
+<style>
+.cat-acciones { display: flex; gap: 8px; }
+.btn-icon { background: none; border: 1px solid var(--gris-borde); border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 0.8rem; color: var(--gris-texto); transition: all 0.2s; }
+.btn-icon:hover { background: var(--gris-fondo); }
+.btn-icon.danger:hover { background: var(--rojo-suave); color: var(--rojo); border-color: var(--rojo-borde); }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 500; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal-box { background: white; border-radius: 16px; padding: 28px; width: 420px; max-width: 95vw; box-shadow: var(--sombra-lg); }
+.modal-title { font-size: 1rem; font-weight: 700; margin-bottom: 18px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">🏷️ Categorías</h1>
+    <p class="seccion-subtitulo">Organice sus productos por categoría</p>
+  </div>
+  <a href="{{ url_for('inventory.product_list') }}" class="btn btn-outline">← Inventario</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 360px;gap:22px;align-items:start;">
+
+  <!-- Lista de categorías -->
+  <div class="tarjeta">
+    <div class="tarjeta-cab">
+      <span class="tarjeta-titulo">Categorías ({{ categories|length }})</span>
+    </div>
+    <div class="tabla-wrap">
+      <table>
+        <thead><tr><th>Nombre</th><th>Descripción</th><th>Productos</th><th>Acciones</th></tr></thead>
+        <tbody>
+          {% for cat in categories %}
+          <tr>
+            <td class="bold">{{ cat.name }}</td>
+            <td class="td-muted">{{ cat.description|default("—", true) }}</td>
+            <td><span class="badge badge-negro">{{ cat.product_count }}</span></td>
+            <td>
+              <div class="cat-acciones">
+                <button class="btn-icon" onclick="abrirEditar({{ cat.pk }}, '{{ cat.name|escapejs }}', '{{ cat.description|escapejs }}')">
+                  ✏️ Editar
+                </button>
+                <form method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar categoría «{{ cat.name }}»? Los productos quedarán sin categoría.')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="cat_id" value="{{ cat.pk }}">
+                  <button type="submit" class="btn-icon danger">🗑️ Eliminar</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">
+            <div class="estado-vacio" style="padding:28px;">
+              <div class="estado-vacio-titulo">Sin categorías</div>
+              <div class="estado-vacio-desc">Cree la primera usando el formulario</div>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Crear nueva -->
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">➕ Nueva Categoría</span></div>
+    <div class="tarjeta-cuerpo">
+      <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <input type="hidden" name="action" value="create">
+        <div class="form-grupo mb-2">
+          <label>Nombre *</label>
+          <input type="text" name="name" required placeholder="Ej: Calzado Deportivo">
+        </div>
+        <div class="form-grupo mb-2">
+          <label>Descripción</label>
+          <textarea name="description" rows="2" placeholder="Descripción opcional..."></textarea>
+        </div>
+        <button type="submit" class="btn btn-rojo btn-bloque">Crear Categoría</button>
+      </form>
+    </div>
+  </div>
+
+</div>
+
+<!-- Modal editar -->
+<div class="modal-overlay" id="modal-editar">
+  <div class="modal-box">
+    <div class="modal-title">✏️ Editar Categoría</div>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <input type="hidden" name="action" value="edit">
+      <input type="hidden" name="cat_id" id="edit-cat-id">
+      <div class="form-grupo mb-2">
+        <label>Nombre *</label>
+        <input type="text" name="name" id="edit-nombre" required>
+      </div>
+      <div class="form-grupo mb-2">
+        <label>Descripción</label>
+        <textarea name="description" id="edit-descripcion" rows="2"></textarea>
+      </div>
+      <div class="form-acciones">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn btn-rojo">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function abrirEditar(id, nombre, desc) {
+  document.getElementById('edit-cat-id').value = id;
+  document.getElementById('edit-nombre').value = nombre;
+  document.getElementById('edit-descripcion').value = desc;
+  document.getElementById('modal-editar').classList.add('show');
+}
+function cerrarModal() {
+  document.getElementById('modal-editar').classList.remove('show');
+}
+document.getElementById('modal-editar').addEventListener('click', function(e) {
+  if (e.target === this) cerrarModal();
+});
+</script>
+{% endblock %}

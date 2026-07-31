@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JLB Sports — Iniciar Sesión</title>
+  <style>
+    :root {
+      --rojo-principal: #DC2626;
+      --rojo-oscuro: #B91C1C;
+      --negro: #111111;
+      --gris-oscuro: #1F2937;
+      --gris-claro: #F3F4F6;
+      --blanco: #FFFFFF;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--negro) 0%, var(--gris-oscuro) 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .login-card {
+      background: white;
+      border-radius: 24px;
+      padding: 48px 40px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+    }
+
+    .login-brand {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .login-brand-nombre {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--negro);
+      letter-spacing: -1px;
+    }
+
+    .login-brand-nombre span {
+      color: var(--rojo-principal);
+    }
+
+    .login-brand-sub {
+      font-size: 0.9rem;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .login-divider {
+      width: 50px;
+      height: 4px;
+      background: var(--rojo-principal);
+      border-radius: 999px;
+      margin: 16px auto 0;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--gris-oscuro);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 1rem;
+      color: var(--negro);
+      transition: border-color 0.2s;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .form-group input:focus {
+      border-color: var(--rojo-principal);
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 15px;
+      background: var(--rojo-principal);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      font-family: inherit;
+      margin-top: 8px;
+    }
+
+    .btn-login:hover {
+      background: var(--rojo-oscuro);
+      transform: translateY(-1px);
+    }
+
+    .btn-login:active {
+      transform: translateY(0);
+    }
+
+    .error-msg {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #dc2626;
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .login-footer {
+      text-align: center;
+      margin-top: 28px;
+      font-size: 0.82rem;
+      color: #9ca3af;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-card">
+
+    <div class="login-brand">
+      <div class="login-brand-nombre">JLB <span>Sports</span></div>
+      <div class="login-brand-sub">Sistema de Gestión Comercial</div>
+      <div class="login-divider"></div>
+    </div>
+
+    {% with flashed = get_flashed_messages(with_categories=true) %}
+    {% for category, msg in flashed %}
+    <div class="error-msg">❌ {{ msg }}</div>
+    {% endfor %}
+    {% endwith %}
+
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <div class="form-group">
+        <label for="id_username">Usuario</label>
+        <input type="text" id="id_username" name="username" autofocus autocomplete="username" placeholder="Tu usuario">
+      </div>
+
+      <div class="form-group">
+        <label for="id_password">Contraseña</label>
+        <input type="password" id="id_password" name="password" autocomplete="current-password" placeholder="Tu contraseña">
+      </div>
+
+      <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;">
+        <input type="checkbox" id="id_remember" name="remember" style="width:auto;" value="1">
+        <label for="id_remember" style="text-transform:none;font-size:0.85rem;">Mantener sesión iniciada</label>
+      </div>
+
+      <input type="hidden" name="next" value="{{ request.args.get('next', '') }}">
+
+      <button type="submit" class="btn-login">Entrar →</button>
+    </form>
+
+    <div class="login-footer">
+      © 2024 JLB Sports · Acceso restringido
+    </div>
+
+  </div>
+
+</body>
+</html>

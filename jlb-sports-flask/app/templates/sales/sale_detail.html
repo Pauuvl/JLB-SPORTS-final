@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Venta #{{ sale.pk }} — JLB Sports{% endblock %}
+{% block topbar_title %}Detalle de Venta{% endblock %}
+
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">Venta #{{ sale.pk }}</h1>
+    <p class="seccion-subtitulo">{{ sale.created_at|django_date("d \d\e F \d\e Y \a \l\a\s H:i") }}</p>
+  </div>
+  <div class="seccion-acciones">
+    <a href="{{ url_for('sales.sale_pdf', pk=sale.pk) }}" class="btn btn-outline" target="_blank">📄 Ver PDF</a>
+    {% if sale.status == 'completed' %}
+    <a href="{{ url_for('sales.sale_cancel', pk=sale.pk) }}" class="btn btn-outline" style="color:var(--rojo);border-color:var(--rojo);">✕ Anular</a>
+    {% endif %}
+    <a href="{{ url_for('sales.sale_list') }}" class="btn btn-outline">← Volver</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:22px;align-items:start;">
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">📦 Artículos Vendidos</span></div>
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Código</th><th>Producto</th><th>Color</th>
+            <th>Precio Unit.</th><th>Cantidad</th><th style="text-align:right">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in sale.items.all %}
+          <tr>
+            <td class="td-muted" style="font-size:0.8rem;">{{ item.product.codigo|default("—", true) }}</td>
+            <td class="bold">{{ item.product.name }}</td>
+            <td>{% if item.color_vendido %}<span class="badge badge-azul">{{ item.color_vendido }}</span>{% else %}—{% endif %}</td>
+            <td>{{ item.unit_price|pesos }}</td>
+            <td>{{ item.quantity }} und.</td>
+            <td style="text-align:right" class="bold">{{ item.subtotal|pesos }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          {% if sale.discount_applied %}
+          <tr>
+            <td colspan="5" style="padding:8px 16px;text-align:right;color:var(--gris-texto);font-size:0.85rem;">Subtotal</td>
+            <td style="padding:8px 16px;text-align:right;color:var(--gris-texto);">
+              {% with subtotal=sale.items.all %}
+                {{ sale.total_amount|pesos }}
+              {% endwith %}
+            </td>
+          </tr>
+          <tr>
+            <td colspan="5" style="padding:4px 16px;text-align:right;color:var(--verde);font-size:0.85rem;">Descuento ({{ sale.discount_applied }}%)</td>
+            <td style="padding:4px 16px;text-align:right;color:var(--verde);font-weight:600;">–</td>
+          </tr>
+          {% endif %}
+          <tr style="background:var(--gris-fondo);">
+            <td colspan="5" class="bold" style="padding:12px 16px;text-align:right;">TOTAL</td>
+            <td style="padding:12px 16px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:800;color:var(--rojo);">
+              {{ sale.total_amount|pesos }}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">📋 Información</span></div>
+    <div class="tarjeta-cuerpo">
+      <div class="info-linea"><span class="td-muted">Cliente</span><span class="bold">{{ sale.client.name if sale.client else "Mostrador" }}</span></div>
+      {% if sale.client.cedula %}
+      <div class="info-linea"><span class="td-muted">Cédula</span><span>{{ sale.client.cedula }}</span></div>
+      {% endif %}
+      {% if sale.client %}
+      <div class="info-linea"><span class="td-muted">Tipo</span><span><span class="badge badge-azul">{{ sale.client.get_client_type_display() }}</span></span></div>
+      {% endif %}
+      <div class="info-linea">
+        <span class="td-muted">Descuento</span>
+        <span>{% if sale.discount_applied %}<span class="badge badge-verde">{{ sale.discount_applied }}%</span>{% else %}Ninguno{% endif %}</span>
+      </div>
+      <div class="info-linea">
+        <span class="td-muted">Estado</span>
+        <span>{% if sale.status == 'completed' %}<span class="badge badge-verde">✓ Completada</span>{% else %}<span class="badge badge-rojo">✕ Anulada</span>{% endif %}</span>
+      </div>
+      <div class="info-linea" style="padding-top:12px;margin-top:4px;border-top:2px solid var(--gris-borde);">
+        <span class="bold">TOTAL</span>
+        <span class="info-total-valor">{{ sale.total_amount|pesos }}</span>
+      </div>
+      {% if sale.notes %}
+      <div style="margin-top:14px;padding:12px;background:var(--gris-fondo);border-radius:var(--radio-sm);font-size:0.84rem;color:var(--gris-texto);">
+        📝 {{ sale.notes }}
+      </div>
+      {% endif %}
+
+      <a href="{{ url_for('sales.sale_pdf', pk=sale.pk) }}" target="_blank"
+         class="btn btn-outline btn-bloque mt-2" style="text-align:center;display:block;">
+        📄 Descargar Factura PDF
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

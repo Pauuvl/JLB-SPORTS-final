@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% block title %}Inventario — JLB Sports{% endblock %}
+{% block topbar_title %}Inventario{% endblock %}
+
+{% block content %}
+
+<!-- ── Encabezado de sección ──────────────────────────────────── -->
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">Inventario</h1>
+    <p class="seccion-subtitulo">Control de productos, marcas, tallas y existencias</p>
+  </div>
+  <div class="seccion-acciones">
+    <a href="{{ url_for('inventory.category_list') }}" class="btn btn-outline">🏷️ Categorías</a>
+    <a href="{{ url_for('inventory.product_create') }}" class="btn btn-rojo">+ Agregar Producto</a>
+  </div>
+</div>
+
+<!-- ── Filtros rápidos de stock ───────────────────────────────── -->
+<div class="filtros-rapidos">
+  <a href="{{ url_for('inventory.product_list') }}{% if query %}?q={{ query }}{% endif %}"
+     class="filtro-btn {% if not stock_filter %}activo{% endif %}">
+    Todos ({{ total_count }})
+  </a>
+  <a href="?stock=bajo{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
+     class="filtro-btn {% if stock_filter == 'bajo' %}activo{% endif %}">
+    ⚠️ Stock Bajo ({{ low_count }})
+  </a>
+  <a href="?stock=agotado{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
+     class="filtro-btn {% if stock_filter == 'agotado' %}activo{% endif %}">
+    🚫 Agotados ({{ out_count }})
+  </a>
+  <a href="?stock=ok{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
+     class="filtro-btn {% if stock_filter == 'ok' %}activo{% endif %}">
+    ✅ Stock OK
+  </a>
+</div>
+
+<!-- ── Barra de búsqueda y filtros ───────────────────────────── -->
+<form method="get" class="filtros-barra">
+  <div class="busqueda-wrap">
+    <span class="busqueda-icono">🔍</span>
+    <input type="text" name="q" value="{{ query }}" placeholder="Buscar por nombre, marca o talla...">
+  </div>
+
+  <select name="category" style="width:auto;min-width:160px;" onchange="this.form.submit()">
+    <option value="">Todas las categorías</option>
+    {% for cat in categories %}
+    <option value="{{ cat.pk }}"
+      {% if selected_category == cat.pk|string %}selected{% endif %}>
+      {{ cat.name }}
+    </option>
+    {% endfor %}
+  </select>
+
+  {% if stock_filter %}<input type="hidden" name="stock" value="{{ stock_filter }}">{% endif %}
+
+  <button type="submit" class="btn btn-outline">Buscar</button>
+  {% if query or selected_category or stock_filter %}
+    <a href="{{ url_for('inventory.product_list') }}" class="btn btn-ghost">✕ Limpiar</a>
+  {% endif %}
+</form>
+
+<!-- ── Tabla de productos ─────────────────────────────────────── -->
+<div class="tarjeta">
+  <div class="tarjeta-cab">
+    <span class="tarjeta-titulo">📦 Productos ({{ products|length }})</span>
+  </div>
+  <div class="tabla-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre del Producto</th>
+          <th>Categoría</th>
+          <th>Marca</th>
+          <th>Talla</th>
+          <th>Costo</th>
+          <th>Precio Venta</th>
+          <th>Margen</th>
+          <th>Stock</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr class="
+          {% if p.stock_quantity == 0 %}fila-agotado
+          {% elif p.is_low_stock %}fila-stock-bajo
+          {% endif %}">
+
+          <!-- Nombre -->
+          <td>
+            <div class="bold">{{ p.name }}</div>
+            {% if p.description %}
+              <div class="td-muted" style="font-size:0.75rem;margin-top:2px;">{{ p.description|truncatechars(45) }}</div>
+            {% endif %}
+          </td>
+
+          <!-- Categoría -->
+          <td class="td-muted">{{ p.category.name if p.category else "—" }}</td>
+
+          <!-- Marca -->
+          <td class="td-muted">{{ p.marca|default("—", true) }}</td>
+
+          <!-- Talla -->
+          <td>
+            {% if p.talla %}
+              <span class="badge badge-negro" style="font-size:0.75rem;padding:4px 10px;letter-spacing:0.5px;">
+                {{ p.talla }}
+              </span>
+            {% else %}
+              <span class="td-muted">—</span>
+            {% endif %}
+          </td>
+
+          <!-- Precio costo -->
+          <td class="td-muted">{{ p.cost_price|pesos }}</td>
+
+          <!-- Precio venta -->
+          <td class="bold">{{ p.sale_price|pesos }}</td>
+
+          <!-- Margen -->
+          <td>
+            <span class="badge
+              {% if p.profit_margin >= 30 %}badge-verde
+              {% elif p.profit_margin >= 15 %}badge-amarillo
+              {% else %}badge-rojo{% endif %}">
+              {{ p.profit_margin|floatformat(0) }}%
+            </span>
+          </td>
+
+          <!-- Stock -->
+          <td>
+            <span class="bold
+              {% if p.stock_quantity == 0 %}txt-rojo
+              {% elif p.is_low_stock %}txt-rojo
+              {% else %}txt-verde{% endif %}">
+              {{ p.stock_quantity }}
+            </span>
+            <span class="td-muted"> und.</span>
+          </td>
+
+          <!-- Estado -->
+          <td>
+            {% if p.stock_quantity == 0 %}
+              <span class="badge badge-rojo">🚫 Agotado</span>
+            {% elif p.is_low_stock %}
+              <span class="badge badge-amarillo">⚠️ Stock Bajo</span>
+            {% else %}
+              <span class="badge badge-verde">✓ Disponible</span>
+            {% endif %}
+          </td>
+
+          <!-- Acciones -->
+          <td>
+            <div class="td-acciones">
+              <a href="{{ url_for('inventory.product_edit', pk=p.pk) }}" class="btn btn-outline btn-sm">✏️ Editar</a>
+              <a href="{{ url_for('inventory.product_delete', pk=p.pk) }}"
+                 class="btn btn-sm"
+                 style="background:var(--rojo-suave);color:var(--rojo);border:1px solid var(--rojo-borde);">
+                🗑️
+              </a>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10">
+            <div class="estado-vacio">
+              <div class="estado-vacio-icono">📦</div>
+              <div class="estado-vacio-titulo">No se encontraron productos</div>
+              <div class="estado-vacio-texto">
+                {% if query or selected_category or stock_filter %}
+                  <a href="{{ url_for('inventory.product_list') }}" class="txt-rojo">Limpiar filtros</a> o
+                {% endif %}
+                <a href="{{ url_for('inventory.product_create') }}" class="txt-rojo">agregar el primer producto</a>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,271 @@
+{% extends 'base.html' %}
+{% block title %}Nueva Cotización — JLB Sports{% endblock %}
+{% block topbar_title %}Nueva Cotización{% endblock %}
+
+{% block extra_css %}
+<style>
+.quote-layout { display: grid; grid-template-columns: 1fr 300px; gap: 22px; align-items: start; }
+.resumen-card { position: sticky; top: 20px; }
+.descuento-strip {
+  background: linear-gradient(135deg,#f0fdf4,#fff); border:1px solid #bbf7d0;
+  border-radius:var(--radio-sm); padding:12px 16px; margin-top:12px;
+  display:flex; align-items:center; gap:12px;
+}
+.descuento-strip label { font-size:0.78rem; font-weight:700; color:#059669; white-space:nowrap; }
+.descuento-strip input {
+  width:80px; text-align:center; font-weight:700; color:#059669;
+  border:2px solid #bbf7d0; border-radius:6px; padding:6px 10px;
+}
+@media(max-width:900px){ .quote-layout{ grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">📄 Nueva Cotización</h1>
+    <p class="seccion-subtitulo">No afecta el inventario</p>
+  </div>
+  <a href="{{ url_for('quotes.quote_list') }}" class="btn btn-outline">← Volver</a>
+</div>
+
+<form method="post" id="form-cotizacion">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+<div class="quote-layout">
+
+  <!-- IZQUIERDA -->
+  <div>
+    <div class="tarjeta mb-2">
+      <div class="tarjeta-cab"><span class="tarjeta-titulo">👤 Cliente</span></div>
+      <div class="tarjeta-cuerpo">
+        <div class="form-grid">
+          <div class="form-grupo">
+            <label>Cliente registrado</label>
+            <select name="client" id="sel-client" onchange="alCambiarCliente()">
+              <option value="" data-descuento="0">— Sin cliente / Mostrador —</option>
+              {% for c in clients %}
+              <option value="{{ c.pk }}" data-descuento="{{ c.discount_percent }}">
+                {{ c.name }}{% if c.cedula %} · {{ c.cedula }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-grupo">
+            <label>O nombre libre</label>
+            <input type="text" name="client_name" placeholder="Ej: Juan Pérez (si no está registrado)">
+          </div>
+        </div>
+        <div class="descuento-strip">
+          <label>🏷️ DESCUENTO:</label>
+          <input type="number" name="discount_percent" id="input-descuento"
+                 min="0" max="100" step="0.5" value="0" oninput="recalcularTotal()">
+          <span style="font-size:0.85rem;color:var(--gris-texto);">%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tarjeta mb-2">
+      <div class="tarjeta-cab">
+        <span class="tarjeta-titulo">📦 Productos</span>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <select id="selector-producto" style="min-width:200px;">
+            <option value="">— Seleccionar producto —</option>
+            {% for p in products %}
+            <option value="{{ p.pk }}" data-precio="{{ p.sale_price }}" data-nombre="{{ p.name }}">
+              {{ p.name }}{% if p.talla %} ({{ p.talla }}){% endif %} — {{ p.sale_price|pesos }}
+            </option>
+            {% endfor %}
+          </select>
+          <button type="button" onclick="agregarProducto()" class="btn btn-rojo btn-sm">+ Agregar</button>
+        </div>
+      </div>
+      <div class="tabla-wrap">
+        <table id="tabla-items">
+          <thead><tr><th>Descripción</th><th style="width:80px">Cant.</th><th style="width:130px">Precio</th><th style="width:110px;text-align:right">Subtotal</th><th style="width:36px"></th></tr></thead>
+          <tbody id="items-body">
+            <tr id="fila-vacia"><td colspan="5"><div class="estado-vacio" style="padding:24px 0;"><div class="estado-vacio-icono">📄</div><div class="estado-vacio-texto">Agregue productos arriba</div></div></td></tr>
+          </tbody>
+          <tfoot>
+            <tr style="background:var(--gris-fondo);">
+              <td colspan="2" style="padding:10px 16px;"></td>
+              <td style="padding:10px 16px;text-align:right;font-weight:700;font-size:0.85rem;">SUBTOTAL</td>
+              <td style="padding:10px 16px;text-align:right;font-weight:700;" id="subtotal-display">$0</td>
+              <td></td>
+            </tr>
+            <tr id="fila-descuento" style="display:none;background:var(--verde-suave);">
+              <td colspan="2" style="padding:4px 16px;"></td>
+              <td style="padding:4px 16px;text-align:right;color:var(--verde);font-size:0.82rem;" id="desc-label">DESCUENTO (0%)</td>
+              <td style="padding:4px 16px;text-align:right;color:var(--verde);font-weight:600;" id="desc-monto">-$0</td>
+              <td></td>
+            </tr>
+            <tr style="background:var(--azul-suave);">
+              <td colspan="2" style="padding:12px 16px;" class="bold">TOTAL COTIZACIÓN</td>
+              <td style="padding:12px 16px;"></td>
+              <td style="padding:12px 16px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:800;color:var(--azul);" id="total-display">$0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div id="campos-ocultos"></div>
+    </div>
+
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><span class="tarjeta-titulo">⚙️ Configuración</span></div>
+      <div class="tarjeta-cuerpo">
+        <div class="form-grid">
+          <div class="form-grupo">
+            <label>Validez (días)</label>
+            <input type="number" name="valid_days" value="15" min="1" max="365">
+          </div>
+          <div class="form-grupo">
+            <label>Observaciones</label>
+            <textarea name="notes" rows="3" placeholder="Condiciones de pago, entrega, notas..."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DERECHA -->
+  <div class="resumen-card">
+    <div class="tarjeta">
+      <div class="tarjeta-cab"><span class="tarjeta-titulo">📋 Resumen</span></div>
+      <div class="tarjeta-cuerpo">
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:0.87rem;">
+          <span class="td-muted">Productos</span><span class="bold" id="r-count">0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:0.87rem;border-top:1px solid var(--gris-borde);margin-top:6px;">
+          <span>Subtotal</span><span id="r-subtotal">$0</span>
+        </div>
+        <div id="r-desc-wrap" style="display:none;padding:5px 0;display:none;justify-content:space-between;font-size:0.87rem;color:var(--verde);">
+          <span id="r-desc-label">Descuento</span><span id="r-desc-val">-$0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:12px 0;margin-top:8px;border-top:2px solid var(--azul);">
+          <span class="bold">TOTAL</span>
+          <span style="font-size:1.4rem;font-weight:800;color:var(--azul);" id="r-total">$0</span>
+        </div>
+        <button type="submit" class="btn btn-bloque mt-1" style="background:var(--azul);color:white;">
+          📄 Crear Cotización
+        </button>
+        <a href="{{ url_for('quotes.quote_list') }}" class="btn btn-outline btn-bloque mt-1">Cancelar</a>
+      </div>
+    </div>
+  </div>
+
+</div>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let items = [];
+
+function formatPesos(v) {
+  return '$' + parseInt(v).toLocaleString('es-CO').replace(/,/g, '.');
+}
+
+function getDescuento() {
+  return parseFloat(document.getElementById('input-descuento').value) || 0;
+}
+
+function alCambiarCliente() {
+  const sel = document.getElementById('sel-client');
+  const opt = sel.selectedOptions[0];
+  const desc = parseFloat(opt.dataset.descuento) || 0;
+  document.getElementById('input-descuento').value = desc;
+  recalcularTotal();
+}
+
+function recalcularTotal() {
+  const subtotal = items.reduce((s, it) => s + it.price * it.qty, 0);
+  const desc = getDescuento();
+  const descMonto = subtotal * (desc / 100);
+  const total = subtotal - descMonto;
+
+  document.getElementById('subtotal-display').textContent = formatPesos(subtotal);
+  document.getElementById('total-display').textContent = formatPesos(total);
+  document.getElementById('r-subtotal').textContent = formatPesos(subtotal);
+  document.getElementById('r-total').textContent = formatPesos(total);
+  document.getElementById('r-count').textContent = items.reduce((s,i) => s + i.qty, 0);
+
+  const filaDesc = document.getElementById('fila-descuento');
+  const rDescWrap = document.getElementById('r-desc-wrap');
+  if (desc > 0 && subtotal > 0) {
+    filaDesc.style.display = 'table-row';
+    rDescWrap.style.display = 'flex';
+    document.getElementById('desc-label').textContent = `DESCUENTO (${desc}%)`;
+    document.getElementById('desc-monto').textContent = `-${formatPesos(descMonto)}`;
+    document.getElementById('r-desc-label').textContent = `Descuento (${desc}%)`;
+    document.getElementById('r-desc-val').textContent = `-${formatPesos(descMonto)}`;
+  } else {
+    filaDesc.style.display = 'none';
+    rDescWrap.style.display = 'none';
+  }
+}
+
+function renderTabla() {
+  const tbody = document.getElementById('items-body');
+  const campos = document.getElementById('campos-ocultos');
+  tbody.innerHTML = '';
+  campos.innerHTML = '';
+
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr id="fila-vacia"><td colspan="5"><div class="estado-vacio" style="padding:24px 0;"><div class="estado-vacio-icono">📄</div><div class="estado-vacio-texto">Agregue productos arriba</div></div></td></tr>';
+    recalcularTotal();
+    return;
+  }
+
+  items.forEach((item, i) => {
+    const sub = item.price * item.qty;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${item.nombre}" style="border:none;background:transparent;font-weight:600;width:100%;font-size:0.9rem;" onchange="items[${i}].nombre=this.value; actualizarCampos();"></td>
+      <td><input type="number" value="${item.qty}" min="1" style="width:60px;text-align:center;" onchange="items[${i}].qty=parseInt(this.value)||1; recalcularTotal(); actualizarCampos();"></td>
+      <td><input type="number" value="${item.price}" min="0" style="width:110px;" onchange="items[${i}].price=parseInt(this.value)||0; recalcularTotal(); actualizarCampos();"></td>
+      <td style="text-align:right;font-weight:700;">${formatPesos(sub)}</td>
+      <td><button type="button" onclick="eliminarItem(${i})" style="background:none;border:none;color:var(--rojo);cursor:pointer;font-size:1rem;">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+    campos.innerHTML += `
+      <input type="hidden" name="product_id[]" value="${item.pid}">
+      <input type="hidden" name="description[]" value="${item.nombre}">
+      <input type="hidden" name="quantity[]" value="${item.qty}">
+      <input type="hidden" name="unit_price[]" value="${item.price}">
+    `;
+  });
+  recalcularTotal();
+}
+
+function actualizarCampos() {
+  const campos = document.getElementById('campos-ocultos');
+  campos.innerHTML = '';
+  items.forEach(item => {
+    campos.innerHTML += `
+      <input type="hidden" name="product_id[]" value="${item.pid}">
+      <input type="hidden" name="description[]" value="${item.nombre}">
+      <input type="hidden" name="quantity[]" value="${item.qty}">
+      <input type="hidden" name="unit_price[]" value="${item.price}">
+    `;
+  });
+}
+
+function agregarProducto() {
+  const sel = document.getElementById('selector-producto');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt.value) return;
+  const desc = getDescuento();
+  const base = parseFloat(opt.dataset.precio || 0);
+  const price = Math.round(base * (1 - desc / 100));
+  items.push({ pid: opt.value, nombre: opt.dataset.nombre, qty: 1, price });
+  sel.value = '';
+  renderTabla();
+}
+
+function eliminarItem(i) {
+  items.splice(i, 1);
+  renderTabla();
+}
+</script>
+{% endblock %}

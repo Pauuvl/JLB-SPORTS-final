@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Pedidos — JLB Sports{% endblock %}
+{% block topbar_title %}Pedidos{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">Pedidos</h1>
+    <p class="seccion-subtitulo">Los pedidos no afectan el stock hasta ser confirmados</p>
+  </div>
+  <a href="{{ url_for('orders.order_create') }}" class="btn btn-rojo">+ Nuevo Pedido</a>
+</div>
+
+<div class="tarjeta">
+  <div class="tarjeta-cab">
+    <span class="tarjeta-titulo">📋 Pedidos ({{ orders|length }})</span>
+  </div>
+  <div class="tabla-wrap">
+    <table>
+      <thead>
+        <tr><th>N°</th><th>Cliente</th><th>Artículos</th><th>Total Est.</th><th>Estado</th><th>Fecha</th><th>Acciones</th></tr>
+      </thead>
+      <tbody>
+        {% for p in orders %}
+        <tr>
+          <td><a href="{{ url_for('orders.order_detail', pk=p.pk) }}" class="bold txt-rojo">#{{ p.pk }}</a></td>
+          <td class="bold">{{ p.client.name if p.client else "Mostrador" }}</td>
+          <td class="td-muted">{{ p.items|length }} art.</td>
+          <td class="bold">{{ p.total_amount|pesos }}</td>
+          <td>
+            {% if p.status == 'pending' %}<span class="badge badge-amarillo">⏳ Pendiente</span>
+            {% elif p.status == 'confirmed' %}<span class="badge badge-verde">✓ Confirmado</span>
+            {% else %}<span class="badge badge-rojo">✕ Cancelado</span>{% endif %}
+          </td>
+          <td class="td-muted">{{ p.created_at|django_date("d/m/Y") }}</td>
+          <td>
+            <div class="td-acciones">
+              <a href="{{ url_for('orders.order_detail', pk=p.pk) }}" class="btn btn-outline btn-sm">Ver</a>
+              {% if p.status == 'pending' %}
+              <a href="{{ url_for('orders.order_confirm', pk=p.pk) }}" class="btn btn-verde btn-sm">✓ Confirmar</a>
+              <a href="{{ url_for('orders.order_cancel', pk=p.pk) }}"  class="btn btn-sm" style="background:var(--rojo-suave);color:var(--rojo);border:1px solid var(--rojo-borde);">✕</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">
+          <div class="estado-vacio">
+            <div class="estado-vacio-icono">📋</div>
+            <div class="estado-vacio-titulo">No hay pedidos</div>
+            <div class="estado-vacio-texto"><a href="{{ url_for('orders.order_create') }}" class="txt-rojo">Crear primer pedido</a></div>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% block title %}Cotización #{{ quote.pk }} — JLB Sports{% endblock %}
+{% block topbar_title %}Detalle de Cotización{% endblock %}
+{% block content %}
+
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">Cotización #{{ quote.pk }}</h1>
+    <p class="seccion-subtitulo">{{ quote.created_at|django_date("d \d\e F \d\e Y") }} · Válida {{ quote.valid_days }} días</p>
+  </div>
+  <div class="seccion-acciones">
+    <form method="post" action="{{ url_for('quotes.quote_status', pk=quote.pk) }}" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <select name="status" onchange="this.form.submit()" style="height:38px;border-radius:8px;border:1px solid var(--gris-borde);padding:0 12px;">
+        <option value="draft"    {% if quote.status == 'draft' %}selected{% endif %}>📝 Borrador</option>
+        <option value="sent"     {% if quote.status == 'sent' %}selected{% endif %}>📤 Enviada</option>
+        <option value="accepted" {% if quote.status == 'accepted' %}selected{% endif %}>✓ Aceptada</option>
+        <option value="rejected" {% if quote.status == 'rejected' %}selected{% endif %}>✕ Rechazada</option>
+      </select>
+    </form>
+    <a href="{{ url_for('quotes.quote_pdf', pk=quote.pk) }}" class="btn btn-outline" target="_blank">📄 Ver PDF</a>
+    <a href="{{ url_for('quotes.quote_delete', pk=quote.pk) }}" class="btn btn-outline" style="color:var(--rojo);border-color:var(--rojo);">🗑️ Eliminar</a>
+    <a href="{{ url_for('quotes.quote_list') }}" class="btn btn-outline">← Volver</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:22px;align-items:start;">
+
+  <div class="tarjeta">
+    <div class="tarjeta-cab">
+      <span class="tarjeta-titulo">📦 Productos Cotizados</span>
+      <span class="td-muted" style="font-size:0.8rem;">No afecta el inventario</span>
+    </div>
+    <div class="tabla-wrap">
+      <table>
+        <thead><tr><th>Descripción</th><th>Precio Unit.</th><th>Cantidad</th><th style="text-align:right">Subtotal</th></tr></thead>
+        <tbody>
+          {% for item in quote.items.all %}
+          <tr>
+            <td><div class="bold">{{ item.description }}</div></td>
+            <td>{{ item.unit_price|pesos }}</td>
+            <td>{{ item.quantity }} und.</td>
+            <td style="text-align:right" class="bold">{{ item.subtotal|pesos }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          {% if quote.discount_applied %}
+          <tr style="background:var(--verde-suave);">
+            <td colspan="3" style="padding:8px 16px;text-align:right;color:var(--verde);font-size:0.85rem;">Descuento ({{ quote.discount_applied }}%)</td>
+            <td style="padding:8px 16px;text-align:right;color:var(--verde);font-weight:600;">–</td>
+          </tr>
+          {% endif %}
+          <tr style="background:var(--azul-suave);">
+            <td colspan="3" class="bold" style="padding:12px 16px;text-align:right;">TOTAL</td>
+            <td style="padding:12px 16px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:800;color:var(--azul);">{{ quote.total_amount|pesos }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% if quote.notes %}
+    <div style="padding:14px 18px;border-top:1px solid var(--gris-borde);font-size:0.85rem;color:var(--gris-texto);">
+      <strong>Observaciones:</strong> {{ quote.notes }}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">📋 Información</span></div>
+    <div class="tarjeta-cuerpo">
+      <div class="info-linea"><span class="td-muted">Cliente</span><span class="bold">{{ quote.display_client }}</span></div>
+      {% if quote.client.cedula %}
+      <div class="info-linea"><span class="td-muted">Cédula</span><span>{{ quote.client.cedula }}</span></div>
+      {% endif %}
+      {% if quote.client.phone %}
+      <div class="info-linea"><span class="td-muted">Teléfono</span><span>{{ quote.client.phone }}</span></div>
+      {% endif %}
+      <div class="info-linea">
+        <span class="td-muted">Estado</span>
+        {% if quote.status == 'draft' %}<span class="badge badge-negro">📝 Borrador</span>
+        {% elif quote.status == 'sent' %}<span class="badge badge-amarillo">📤 Enviada</span>
+        {% elif quote.status == 'accepted' %}<span class="badge badge-verde">✓ Aceptada</span>
+        {% else %}<span class="badge badge-rojo">✕ Rechazada</span>{% endif %}
+      </div>
+      {% if quote.discount_applied %}
+      <div class="info-linea"><span class="td-muted">Descuento</span><span class="badge badge-verde">{{ quote.discount_applied }}%</span></div>
+      {% endif %}
+      <div class="info-linea"><span class="td-muted">Validez</span><span>{{ quote.valid_days }} días</span></div>
+      <div class="info-linea"><span class="td-muted">Fecha</span><span>{{ quote.created_at|django_date("d/m/Y") }}</span></div>
+      <div class="info-linea" style="padding-top:12px;margin-top:4px;border-top:2px solid var(--azul);">
+        <span class="bold">TOTAL</span>
+        <span style="font-size:1.2rem;font-weight:800;color:var(--azul);">{{ quote.total_amount|pesos }}</span>
+      </div>
+      <a href="{{ url_for('quotes.quote_pdf', pk=quote.pk) }}" target="_blank"
+         class="btn btn-bloque mt-2" style="display:block;text-align:center;background:var(--azul);color:white;">
+        📄 Descargar PDF
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

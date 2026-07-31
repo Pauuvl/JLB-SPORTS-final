@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+{% block title %}{{ client.name }} — JLB Sports{% endblock %}
+{% block topbar_title %}Detalle de Cliente{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">{{ client.name }}</h1>
+    <p class="seccion-subtitulo">{{ client.get_client_type_display() }} · Desde {{ client.created_at|django_date("d/m/Y") }}</p>
+  </div>
+  <div class="seccion-acciones">
+    <a href="{{ url_for('clients.client_edit', pk=client.pk) }}" class="btn btn-outline">✏️ Editar</a>
+    <a href="{{ url_for('clients.client_list') }}" class="btn btn-outline">← Volver</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;">
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">📋 Información</span></div>
+    <div class="tarjeta-cuerpo">
+      {% if client.cedula %}
+      <div class="info-linea"><span class="td-muted">🪪 Cédula / NIT</span><span class="bold">{{ client.cedula }}</span></div>
+      {% endif %}
+      <div class="info-linea">
+        <span class="td-muted">Tipo</span>
+        <span><span class="badge badge-azul">{{ client.get_client_type_display() }}</span></span>
+      </div>
+      {% if client.phone %}
+      <div class="info-linea"><span class="td-muted">📱 Teléfono</span><span>{{ client.phone }}</span></div>
+      {% endif %}
+      {% if client.email %}
+      <div class="info-linea"><span class="td-muted">✉️ Correo</span><span>{{ client.email }}</span></div>
+      {% endif %}
+      {% if client.municipio %}
+      <div class="info-linea"><span class="td-muted">📍 Municipio</span><span>{{ client.municipio }}</span></div>
+      {% endif %}
+      {% if client.address %}
+      <div class="info-linea"><span class="td-muted">Dirección</span><span>{{ client.address }}</span></div>
+      {% endif %}
+      <div class="info-linea">
+        <span class="td-muted">Descuento</span>
+        <span>{% if client.discount_percent %}<span class="badge badge-verde">{{ client.discount_percent }}%</span>{% else %}Ninguno{% endif %}</span>
+      </div>
+      {% if client.notes %}
+      <div style="margin-top:14px;padding:12px;background:var(--gris-fondo);border-radius:var(--radio-sm);font-size:0.84rem;color:var(--gris-texto);">
+        📝 {{ client.notes }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">🧾 Últimas Compras</span></div>
+    <div class="tabla-wrap">
+      <table>
+        <thead><tr><th>N°</th><th>Total</th><th>Fecha</th><th>Estado</th></tr></thead>
+        <tbody>
+          {% for v in sales %}
+          <tr>
+            <td><a href="{{ url_for('sales.sale_detail', pk=v.pk) }}" class="bold txt-rojo">#{{ v.pk }}</a></td>
+            <td class="bold">{{ v.total_amount|pesos }}</td>
+            <td class="td-muted">{{ v.created_at|django_date("d/m/Y") }}</td>
+            <td>
+              {% if v.status == 'completed' %}<span class="badge badge-verde">✓</span>
+              {% else %}<span class="badge badge-rojo">✕</span>{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="td-muted" style="text-align:center;padding:28px;">Sin compras registradas</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

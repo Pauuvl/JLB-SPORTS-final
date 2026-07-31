@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Eliminar Pedido #{{ order.pk }}{% endblock %}
+{% block topbar_title %}Eliminar Pedido{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <h1 class="seccion-titulo">Eliminar Pedido #{{ order.pk }}</h1>
+</div>
+<div class="tarjeta" style="max-width:600px;">
+  <div class="tarjeta-cab"><span class="tarjeta-titulo">🗑️ Confirmar Eliminación</span></div>
+  <div class="tarjeta-cuerpo">
+    <div style="background:var(--gris-fondo);border-radius:8px;padding:16px;margin-bottom:20px;">
+      <div class="info-linea"><span class="td-muted">Cliente</span><span class="bold">{{ order.client.name if order.client else "Mostrador" }}</span></div>
+      <div class="info-linea"><span class="td-muted">Estado</span>
+        <span>
+          {% if order.status == 'pending' %}<span class="badge badge-amarillo">⏳ Pendiente</span>
+          {% elif order.status == 'confirmed' %}<span class="badge badge-verde">✓ Confirmado</span>
+          {% else %}<span class="badge badge-rojo">✕ Cancelado</span>{% endif %}
+        </span>
+      </div>
+      <div class="info-linea"><span class="td-muted">Total</span><span class="bold">{{ order.total_amount|pesos }}</span></div>
+    </div>
+    {% if order.status == 'confirmed' %}
+    <div style="background:#FDF2F2;border:1px solid var(--rojo-borde);border-radius:8px;padding:12px;margin-bottom:20px;font-size:0.85rem;color:var(--rojo);">
+      ⚠️ Este pedido está confirmado. Al eliminarlo, el stock de los productos se restaurará automáticamente.
+    </div>
+    {% else %}
+    <div style="background:#FDF2F2;border:1px solid var(--rojo-borde);border-radius:8px;padding:12px;margin-bottom:20px;font-size:0.85rem;color:var(--rojo);">
+      ⚠️ Esta acción es irreversible.
+    </div>
+    {% endif %}
+    <div class="form-acciones">
+      <a href="{{ url_for('orders.order_detail', pk=order.pk) }}" class="btn btn-outline">Cancelar</a>
+      <form method="post" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="btn btn-rojo">🗑️ Sí, Eliminar Pedido</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Registrar Venta — Pedido #{{ order.pk }}{% endblock %}
+{% block topbar_title %}Registrar como Venta{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <h1 class="seccion-titulo">Registrar Pedido #{{ order.pk }} como Venta</h1>
+</div>
+<div class="tarjeta" style="max-width:600px;">
+  <div class="tarjeta-cab"><span class="tarjeta-titulo">💰 Confirmar Registro de Venta</span></div>
+  <div class="tarjeta-cuerpo">
+    <p style="margin-bottom:16px;">¿Está seguro de que desea registrar este pedido como venta?</p>
+    <div style="background:var(--gris-fondo);border-radius:8px;padding:16px;margin-bottom:20px;">
+      <div class="info-linea"><span class="td-muted">Cliente</span><span class="bold">{{ order.client.name if order.client else "Mostrador" }}</span></div>
+      <div class="info-linea"><span class="td-muted">Artículos</span><span>{{ order.items|length }} productos</span></div>
+      <div class="info-linea"><span class="td-muted">Total</span><span class="bold" style="color:var(--rojo);">{{ order.total_amount|pesos }}</span></div>
+    </div>
+    <div style="background:#EBF5FB;border:1px solid #2980b9;border-radius:8px;padding:12px;margin-bottom:20px;font-size:0.85rem;color:#1a5276;">
+      ℹ️ El stock ya fue descontado al confirmar el pedido. Esta acción solo registra la venta en el historial de ventas.
+    </div>
+    <div class="form-acciones">
+      <a href="{{ url_for('orders.order_detail', pk=order.pk) }}" class="btn btn-outline">Cancelar</a>
+      <form method="post" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="btn btn-rojo">💰 Sí, Registrar Venta</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

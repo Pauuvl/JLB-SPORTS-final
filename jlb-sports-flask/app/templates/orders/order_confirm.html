@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Confirmar Pedido #{{ order.pk }}{% endblock %}
+{% block topbar_title %}Confirmar Pedido{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <h1 class="seccion-titulo">Confirmar Pedido #{{ order.pk }}</h1>
+  <a href="{{ url_for('orders.order_list') }}" class="btn btn-outline">← Volver</a>
+</div>
+<div class="tarjeta" style="max-width:580px;">
+  <div class="tarjeta-cuerpo" style="text-align:center;padding:40px 32px;">
+    <div style="font-size:3rem;margin-bottom:16px;">✅</div>
+    <h2 style="margin-bottom:8px;">¿Confirmar Pedido #{{ order.pk }}?</h2>
+    <p style="color:var(--gris-texto);margin-bottom:20px;">Total: <strong>{{ order.total_amount|pesos }}</strong> · Cliente: {{ order.client.name if order.client else "Mostrador" }}</p>
+
+    <div class="tabla-wrap mb-2" style="text-align:left;">
+      <table>
+        <thead><tr><th>Producto</th><th>Cant.</th><th>Stock</th></tr></thead>
+        <tbody>
+          {% for item in order.items.all %}
+          <tr>
+            <td>{{ item.product.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>
+              {% if item.product.stock_quantity >= item.quantity %}
+                <span class="badge badge-verde">{{ item.product.stock_quantity }} ✓</span>
+              {% else %}
+                <span class="badge badge-rojo">⚠️ Solo {{ item.product.stock_quantity }}</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alerta alerta-warning" style="text-align:left;margin-bottom:20px;">
+      ⚠️ El stock será descontado <strong>inmediatamente</strong> al confirmar.
+    </div>
+    <form method="post" style="display:flex;gap:12px;justify-content:center;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <a href="{{ url_for('orders.order_list') }}" class="btn btn-outline">Cancelar</a>
+      <button type="submit" class="btn btn-verde">✓ Sí, Confirmar</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

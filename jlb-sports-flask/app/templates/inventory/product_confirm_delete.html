@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Eliminar Producto{% endblock %}
+{% block topbar_title %}Eliminar Producto{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <h1 class="seccion-titulo">Eliminar Producto</h1>
+  <a href="{{ url_for('inventory.product_list') }}" class="btn btn-outline">← Volver</a>
+</div>
+<div class="tarjeta" style="max-width:520px;">
+  <div class="tarjeta-cuerpo" style="text-align:center;padding:48px 32px;">
+    <div style="font-size:3rem;margin-bottom:16px;">🗑️</div>
+    <h2 style="margin-bottom:10px;">¿Eliminar este producto?</h2>
+    <p style="color:var(--gris-texto);margin-bottom:4px;">Producto:</p>
+    <p style="font-weight:700;font-size:1.05rem;color:var(--rojo);margin-bottom:20px;">"{{ product.name }}"</p>
+    <div class="alerta alerta-warning" style="text-align:left;margin-bottom:24px;">
+      ⚠️ Esta acción <strong>no se puede deshacer</strong>.
+    </div>
+    <form method="post" style="display:flex;gap:12px;justify-content:center;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <a href="{{ url_for('inventory.product_list') }}" class="btn btn-outline">Cancelar</a>
+      <button type="submit" class="btn btn-rojo">🗑️ Sí, Eliminar</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

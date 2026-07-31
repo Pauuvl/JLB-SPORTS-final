@@ -1,0 +1,470 @@
+{% extends 'base.html' %}
+{% block title %}Nuevo Pedido — JLB Sports{% endblock %}
+{% block topbar_title %}Nuevo Pedido{% endblock %}
+
+{% block content %}
+
+<div class="seccion-header">
+
+  <div>
+    <h1 class="seccion-titulo">Nuevo Pedido</h1>
+
+    <p class="seccion-subtitulo">
+      El stock NO se afecta hasta confirmar el pedido
+    </p>
+  </div>
+
+  <a href="{{ url_for('orders.order_list') }}" class="btn btn-outline">
+    ← Volver
+  </a>
+
+</div>
+
+<form method="post">
+
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+  <div class="venta-grid">
+
+    <!-- IZQUIERDA -->
+    <div>
+
+      <!-- CLIENTE -->
+      <div class="tarjeta mb-2">
+
+        <div class="tarjeta-cab">
+          <span class="tarjeta-titulo">👤 Cliente</span>
+        </div>
+
+        <div class="tarjeta-cuerpo">
+
+          <div class="form-grid">
+
+            <div class="form-grupo">
+
+              <label>CLIENTE</label>
+
+              <select
+                name="client"
+                id="select-cliente"
+                onchange="alCambiarCliente()"
+              >
+
+                <option value="" data-multiplicador="1">
+                  — Mostrador —
+                </option>
+
+                {% for c in clients %}
+
+                <option
+                  value="{{ c.pk }}"
+                  data-multiplicador="{{ c.price_multiplier }}"
+                >
+
+                  {{ c.name }}
+
+                </option>
+
+                {% endfor %}
+
+              </select>
+
+            </div>
+
+            <div class="form-grupo">
+
+              <label>OBSERVACIONES</label>
+
+              <input
+                type="text"
+                name="notes"
+                placeholder="Notas opcionales..."
+              >
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- PRODUCTOS -->
+      <div class="tarjeta">
+
+        <div class="tarjeta-cab">
+
+          <span class="tarjeta-titulo">📦 Productos</span>
+
+          <button
+            type="button"
+            class="btn btn-outline btn-sm"
+            onclick="agregarItem()"
+          >
+            + Agregar
+          </button>
+
+        </div>
+
+        <div class="tarjeta-cuerpo">
+
+          <div id="items-lista"></div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- DERECHA -->
+    <div class="venta-resumen">
+
+      <h3>📋 RESUMEN</h3>
+
+      <div class="resumen-linea">
+
+        <span class="td-muted">
+          Artículos
+        </span>
+
+        <span id="resumen-items" class="bold">
+          0
+        </span>
+
+      </div>
+
+      <div
+        class="resumen-linea"
+        style="margin-top:8px;padding-top:12px;border-top:2px solid var(--gris-borde);"
+      >
+
+        <span class="bold">
+          TOTAL
+        </span>
+
+        <span
+          class="resumen-total-valor"
+          id="resumen-total"
+        >
+          $0
+        </span>
+
+      </div>
+
+      <button
+        type="submit"
+        class="btn btn-negro btn-lg btn-bloque mt-2"
+      >
+        📋 Crear Pedido
+      </button>
+
+      <a
+        href="{{ url_for('orders.order_list') }}"
+        class="btn btn-outline btn-bloque mt-1"
+      >
+        Cancelar
+      </a>
+
+    </div>
+
+  </div>
+
+</form>
+
+<!-- PRODUCTOS -->
+<script>
+
+window.PRODUCTOS = {{ products_json|safe }};
+
+console.log(window.PRODUCTOS);
+
+</script>
+
+<script>
+
+let multiplicadorCliente = 1;
+
+let itemIndex = 0;
+
+function alCambiarCliente() {
+
+  const sel = document.getElementById('select-cliente');
+
+  multiplicadorCliente =
+    parseFloat(
+      sel.selectedOptions[0].dataset.multiplicador
+    ) || 1;
+
+  recalcularTodo();
+}
+
+function formatoPesos(v) {
+
+  return '$' + Math.round(v)
+    .toLocaleString('es-CO')
+    .replace(/,/g, '.');
+}
+
+function agregarItem() {
+
+  if (!window.PRODUCTOS || window.PRODUCTOS.length === 0) {
+
+    alert('No hay productos disponibles.');
+
+    console.log(window.PRODUCTOS);
+
+    return;
+  }
+
+  const lista =
+    document.getElementById('items-lista');
+
+  const idx = itemIndex++;
+
+  const opcionesProducto =
+    window.PRODUCTOS.map(p => {
+
+      const stockLabel =
+        p.stock === 0
+          ? ' ⚠️ AGOTADO'
+          : ` — Stock: ${p.stock}`;
+
+      return `
+        <option
+          value="${p.id}"
+          data-precio="${p.precio}"
+          data-stock="${p.stock}"
+        >
+          ${p.nombre}${stockLabel}
+        </option>
+      `;
+
+    }).join('');
+
+  const div = document.createElement('div');
+
+  div.className = 'item-fila';
+
+  div.id = `item-${idx}`;
+
+  div.innerHTML = `
+
+    <div class="item-fila-grid">
+
+      <div class="form-grupo" style="grid-column:1/-1">
+
+        <label>PRODUCTO</label>
+
+        <select
+          name="product_id[]"
+          onchange="alCambiarProducto(${idx})"
+          required
+          style="border:2px solid var(--rojo);"
+        >
+
+          <option value="">
+            — Seleccionar —
+          </option>
+
+          ${opcionesProducto}
+
+        </select>
+
+      </div>
+
+      <div class="form-grupo">
+
+        <label>CANTIDAD</label>
+
+        <input
+          type="number"
+          name="quantity[]"
+          id="qty-${idx}"
+          value="1"
+          min="1"
+          oninput="validarStock(${idx}); recalcularTodo();"
+          required
+        >
+
+      </div>
+
+      <div class="form-grupo">
+
+        <label>PRECIO UNIT.</label>
+
+        <input
+          type="text"
+          id="precio-${idx}"
+          readonly
+          value="$0"
+          style="background:var(--gris-fondo);"
+        >
+
+      </div>
+
+      <div class="form-grupo">
+
+        <label>SUBTOTAL</label>
+
+        <input
+          type="text"
+          id="subtotal-${idx}"
+          readonly
+          value="$0"
+          style="background:var(--gris-fondo);font-weight:700;"
+        >
+
+      </div>
+
+    </div>
+
+    <button
+      type="button"
+      onclick="eliminarItem(${idx})"
+      style="
+        margin-top:8px;
+        background:none;
+        border:none;
+        color:var(--rojo);
+        cursor:pointer;
+        font-size:0.85rem;
+      "
+    >
+      ✕ Quitar
+    </button>
+
+    <hr style="
+      margin:14px 0;
+      border-color:var(--gris-borde);
+    ">
+
+  `;
+
+  lista.appendChild(div);
+
+  recalcularTodo();
+}
+
+function alCambiarProducto(idx) {
+
+  const sel = document.querySelector(
+    `#item-${idx} select[name="product_id[]"]`
+  );
+
+  const opt = sel.selectedOptions[0];
+
+  if (!opt || !opt.value) return;
+
+  const precio =
+    parseFloat(opt.dataset.precio)
+    * multiplicadorCliente;
+
+  document.getElementById(
+    `precio-${idx}`
+  ).value = formatoPesos(precio);
+
+  validarStock(idx);
+
+  recalcularTodo();
+}
+
+function validarStock(idx) {
+
+  const sel = document.querySelector(
+    `#item-${idx} select[name="product_id[]"]`
+  );
+
+  const opt = sel?.selectedOptions[0];
+
+  if (!opt || !opt.value) return;
+
+  const stock =
+    parseInt(opt.dataset.stock) || 0;
+
+  const qtyInput =
+    document.getElementById(`qty-${idx}`);
+
+  let qty =
+    parseInt(qtyInput.value) || 1;
+
+  if (qty > stock) {
+
+    qty = stock;
+
+    qtyInput.value = stock;
+
+    alert(
+      `Solo hay ${stock} unidades disponibles.`
+    );
+  }
+}
+
+function recalcularTodo() {
+
+  let total = 0;
+
+  let totalItems = 0;
+
+  document.querySelectorAll('.item-fila')
+    .forEach(fila => {
+
+      const idx =
+        fila.id.replace('item-', '');
+
+      const sel = fila.querySelector(
+        'select[name="product_id[]"]'
+      );
+
+      const opt =
+        sel?.selectedOptions[0];
+
+      if (!opt || !opt.value) return;
+
+      const precio =
+        parseFloat(opt.dataset.precio)
+        * multiplicadorCliente;
+
+      const qty =
+        parseInt(
+          document.getElementById(
+            `qty-${idx}`
+          )?.value
+        ) || 1;
+
+      const subtotal = precio * qty;
+
+      document.getElementById(
+        `precio-${idx}`
+      ).value = formatoPesos(precio);
+
+      document.getElementById(
+        `subtotal-${idx}`
+      ).value = formatoPesos(subtotal);
+
+      total += subtotal;
+
+      totalItems += qty;
+
+    });
+
+  document.getElementById(
+    'resumen-total'
+  ).textContent = formatoPesos(total);
+
+  document.getElementById(
+    'resumen-items'
+  ).textContent = totalItems;
+}
+
+function eliminarItem(idx) {
+
+  document.getElementById(
+    `item-${idx}`
+  )?.remove();
+
+  recalcularTodo();
+}
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Precios — JLB Sports{% endblock %}
+{% block topbar_title %}Gestión de Precios{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">Gestión de Precios</h1>
+    <p class="seccion-subtitulo">Análisis de márgenes y listas de precios personalizadas</p>
+  </div>
+  <a href="{{ url_for('pricing.price_list_create') }}" class="btn btn-rojo">+ Nueva Lista</a>
+</div>
+
+<!-- Tabla de análisis de márgenes -->
+<div class="tarjeta mb-3">
+  <div class="tarjeta-cab">
+    <span class="tarjeta-titulo">📊 Análisis Costo vs. Precio de Venta</span>
+  </div>
+  <div class="tabla-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Producto</th>
+          <th>Categoría</th>
+          <th>Precio Costo</th>
+          <th>Precio Venta</th>
+          <th>Ganancia Unit.</th>
+          <th>Margen %</th>
+          <th>Valor en Stock</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in products %}
+        <tr>
+          <td class="bold">{{ p.name }}</td>
+          <td class="td-muted">{{ p.category.name if p.category else "—" }}</td>
+          <td class="td-muted">{{ p.cost_price|pesos }}</td>
+          <td class="bold">{{ p.sale_price|pesos }}</td>
+          <td class="bold {% if p.sale_price > p.cost_price %}txt-verde{% else %}txt-rojo{% endif %}">
+            {{ p.sale_price|floatformat(0) }}
+          </td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="badge {% if p.profit_margin >= 30 %}badge-verde{% elif p.profit_margin >= 15 %}badge-amarillo{% else %}badge-rojo{% endif %}">
+                {{ p.profit_margin|floatformat(1) }}%
+              </span>
+              <div class="progreso-wrap" style="width:60px;flex-shrink:0;">
+                <div class="progreso-barra {% if p.profit_margin >= 30 %}verde{% elif p.profit_margin >= 15 %}amarillo{% else %}rojo{% endif %}"
+                     style="width:{% if p.profit_margin > 100 %}100{% else %}{{ p.profit_margin|floatformat(0) }}{% endif %}%">
+                </div>
+              </div>
+            </div>
+          </td>
+          <td class="td-muted">{{ p.stock_value|pesos }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">
+          <div class="estado-vacio"><div class="estado-vacio-titulo">Sin productos</div></div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Listas de precios -->
+<div class="seccion-header" style="margin-top:8px;margin-bottom:16px;">
+  <h2 style="font-family:'Barlow Condensed',sans-serif;font-size:1.5rem;font-weight:700;">📋 Listas de Precios Personalizadas</h2>
+</div>
+
+{% if price_lists %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+  {% for lista in price_lists %}
+  <div class="tarjeta">
+    <div class="tarjeta-cab">
+      <span class="tarjeta-titulo">{{ lista.name }}</span>
+      {% if lista.client_type %}<span class="badge badge-negro">{{ lista.get_client_type_display() }}</span>{% endif %}
+    </div>
+    <div class="tarjeta-cuerpo">
+      {% if lista.description %}<p style="font-size:0.83rem;color:var(--gris-texto);margin-bottom:10px;">{{ lista.description }}</p>{% endif %}
+      <p style="font-size:0.82rem;color:var(--gris-texto);margin-bottom:14px;">{{ lista.items|length }} producto{{ lista.items|length|pluralize }} con precio especial</p>
+      <a href="{{ url_for('pricing.price_list_detail', pk=lista.pk) }}" class="btn btn-outline btn-sm">✏️ Gestionar</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="tarjeta">
+  <div class="tarjeta-cuerpo">
+    <div class="estado-vacio">
+      <div class="estado-vacio-icono">📋</div>
+      <div class="estado-vacio-titulo">Sin listas de precios</div>
+      <div class="estado-vacio-texto"><a href="{{ url_for('pricing.price_list_create') }}" class="txt-rojo">Crear primera lista</a></div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

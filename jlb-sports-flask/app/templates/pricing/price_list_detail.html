@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}{{ price_list.name }} — JLB Sports{% endblock %}
+{% block topbar_title %}Lista de Precios{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">{{ price_list.name }}</h1>
+    {% if price_list.client_type %}<p class="seccion-subtitulo">Para: {{ price_list.get_client_type_display() }}</p>{% endif %}
+  </div>
+  <a href="{{ url_for('pricing.pricing_overview') }}" class="btn btn-outline">← Volver</a>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 340px;gap:22px;align-items:start;">
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">💰 Precios Personalizados ({{ items|length }})</span></div>
+    <div class="tabla-wrap">
+      <table>
+        <thead><tr><th>Producto</th><th>Precio Estándar</th><th>Precio Especial</th><th>Diferencia</th></tr></thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td class="bold">{{ item.product.name }}</td>
+            <td class="td-muted">{{ item.product.sale_price|pesos }}</td>
+            <td class="bold txt-rojo">{{ item.custom_price|pesos }}</td>
+            <td>
+              {% if item.custom_price < item.product.sale_price %}
+                <span class="badge badge-verde">Descuento</span>
+              {% else %}
+                <span class="badge badge-amarillo">Especial</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">
+            <div class="estado-vacio" style="padding:32px;">
+              <div class="estado-vacio-titulo">Sin precios aún</div>
+              <div class="estado-vacio-texto">Use el formulario para agregar precios</div>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">➕ Agregar Precio</span></div>
+    <div class="tarjeta-cuerpo">
+      <form method="post" action="{{ url_for('pricing.add_price_list_item', pk=price_list.pk) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <div class="form-grupo mb-2">
+          <label>Producto *</label>
+          <select name="product" required id="sel-producto" onchange="mostrarBase(this)">
+            <option value="">— Seleccionar —</option>
+            {% for p in products %}
+            <option value="{{ p.pk }}" data-precio="{{ p.sale_price }}">
+              {{ p.name }} ({{ p.sale_price|pesos }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div id="hint-base" style="display:none;background:var(--rojo-suave);border:1px solid var(--rojo-borde);padding:9px 12px;border-radius:var(--radio-sm);margin-bottom:12px;font-size:0.82rem;color:var(--rojo-oscuro);">
+          Precio estándar: <strong id="val-base"></strong>
+        </div>
+        <div class="form-grupo mb-2">
+          <label>Precio Especial (COP) *</label>
+          <input type="number" name="custom_price" id="inp-precio" step="1" min="0" required placeholder="0">
+        </div>
+        <button type="submit" class="btn btn-rojo btn-bloque">💾 Guardar Precio</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function formatoPesos(v) {
+  return '$' + parseInt(v).toLocaleString('es-CO').replace(/,/g,'.');
+}
+function mostrarBase(sel) {
+  const opt = sel.options[sel.selectedIndex];
+  const precio = opt.dataset.precio;
+  const hint = document.getElementById('hint-base');
+  const val  = document.getElementById('val-base');
+  const inp  = document.getElementById('inp-precio');
+  if (precio) {
+    hint.style.display = 'block';
+    val.textContent = formatoPesos(precio);
+    inp.value = parseInt(precio);
+  } else {
+    hint.style.display = 'none';
+    inp.value = '';
+  }
+}
+</script>
+{% endblock %}

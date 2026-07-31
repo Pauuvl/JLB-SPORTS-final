@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}JLB Sports — Sistema de Gestión{% endblock %}</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  {% block extra_css %}{% endblock %}
+
+  <style>
+    :root{
+      --rojo-principal:#DC2626;
+      --rojo-oscuro:#B91C1C;
+      --negro:#111111;
+      --gris-oscuro:#1F2937;
+      --gris-claro:#F3F4F6;
+      --blanco:#FFFFFF;
+      --verde:#10B981;
+      --alerta:#EF4444;
+    }
+
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+    }
+
+    body{
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--gris-claro);
+      color: var(--gris-oscuro);
+      display:flex;
+      min-height:100vh;
+    }
+
+    /* ═══════════════ SIDEBAR ═══════════════ */
+
+    .sidebar{
+      width:280px;
+      background: linear-gradient(180deg,var(--negro),var(--gris-oscuro));
+      color:white;
+      display:flex;
+      flex-direction:column;
+      padding:20px;
+      position:fixed;
+      height:100vh;
+      overflow-y:auto;
+      box-shadow:4px 0 20px rgba(0,0,0,0.2);
+    }
+
+    .sidebar-brand{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      text-decoration:none;
+      margin-bottom:30px;
+      padding:14px;
+      border-radius:18px;
+      background: rgba(255,255,255,0.05);
+      transition:0.3s;
+    }
+
+    .sidebar-brand:hover{
+      background: rgba(255,255,255,0.08);
+    }
+
+    .brand-icon{
+      width:60px;
+      height:60px;
+      border-radius:16px;
+      overflow:hidden;
+      background:white;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 4px 12px rgba(0,0,0,0.2);
+      flex-shrink:0;
+    }
+
+    .brand-icon img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+
+    .brand-text{
+      display:flex;
+      flex-direction:column;
+    }
+
+    .brand-nombre{
+      font-size:1.2rem;
+      font-weight:700;
+      color:white;
+    }
+
+    .brand-sub{
+      font-size:0.85rem;
+      color:#d1d5db;
+    }
+
+    .nav-grupo-label{
+      font-size:0.75rem;
+      text-transform:uppercase;
+      color:#9ca3af;
+      margin:18px 0 10px;
+      letter-spacing:1px;
+    }
+
+    .sidebar-nav{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    .nav-enlace{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:14px 16px;
+      border-radius:14px;
+      color:white;
+      text-decoration:none;
+      transition:0.3s;
+      font-weight:500;
+      position:relative;
+    }
+
+    .nav-enlace:hover{
+      background:rgba(220,38,38,0.15);
+      transform:translateX(3px);
+    }
+
+    .nav-enlace.activo{
+      background:var(--rojo-principal);
+      box-shadow:0 4px 14px rgba(220,38,38,0.4);
+    }
+
+    .nav-icono{
+      font-size:1.1rem;
+    }
+
+    .nav-badge{
+      margin-left:auto;
+      background:var(--alerta);
+      padding:3px 9px;
+      border-radius:999px;
+      font-size:0.75rem;
+      font-weight:700;
+    }
+
+    .sidebar-pie{
+      margin-top:auto;
+      padding-top:20px;
+    }
+
+    .sidebar-admin-link{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      text-decoration:none;
+      color:white;
+      padding:12px 14px;
+      border-radius:12px;
+      background:rgba(255,255,255,0.05);
+      transition:0.3s;
+    }
+
+    .sidebar-admin-link:hover{
+      background:rgba(220,38,38,0.2);
+    }
+
+    /* ═══════════════ MAIN ═══════════════ */
+
+    .main-wrap{
+      margin-left:280px;
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      min-height:100vh;
+    }
+
+    .topbar{
+      height:80px;
+      background:white;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 30px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .topbar-titulo{
+      font-size:1.3rem;
+      font-weight:700;
+      color:var(--negro);
+    }
+
+    .topbar-der{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+
+    .topbar-chip{
+      background:var(--rojo-principal);
+      color:white;
+      padding:8px 14px;
+      border-radius:999px;
+      font-size:0.85rem;
+      font-weight:600;
+    }
+
+    .pagina-contenido{
+      padding:30px;
+      flex:1;
+    }
+
+    /* ═══════════════ ALERTAS ═══════════════ */
+
+    .messages-wrap{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      margin-bottom:20px;
+    }
+
+    .alerta{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:14px 18px;
+      border-radius:14px;
+      background:white;
+      box-shadow:0 2px 10px rgba(0,0,0,0.05);
+      position:relative;
+    }
+
+    .alerta-success{
+      border-left:5px solid var(--verde);
+    }
+
+    .alerta-error{
+      border-left:5px solid var(--alerta);
+    }
+
+    .alerta-warning{
+      border-left:5px solid #f59e0b;
+    }
+
+    .alerta-info{
+      border-left:5px solid var(--rojo-principal);
+    }
+
+    .alerta-cerrar{
+      margin-left:auto;
+      border:none;
+      background:none;
+      font-size:1.2rem;
+      cursor:pointer;
+      color:#6b7280;
+    }
+
+    /* ═══════════════ FOOTER ═══════════════ */
+
+    .page-footer{
+      background:white;
+      padding:18px 30px;
+      display:flex;
+      justify-content:space-between;
+      font-size:0.9rem;
+      color:#6b7280;
+      border-top:1px solid #e5e7eb;
+    }
+
+    /* ═══════════════ RESPONSIVE ═══════════════ */
+
+    @media(max-width:900px){
+
+      .sidebar{
+        transform:translateX(-100%);
+        transition:0.3s;
+        z-index:999;
+      }
+
+      .sidebar.active{
+        transform:translateX(0);
+      }
+
+      .main-wrap{
+        margin-left:0;
+      }
+
+      .topbar{
+        padding:0 20px;
+      }
+
+      .pagina-contenido{
+        padding:20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="sidebar-overlay"></div>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+
+<aside class="sidebar">
+
+  <a href="{{ url_for('dashboard.dashboard') }}" class="sidebar-brand">
+
+   <!-- <div class="brand-icon">
+      <img src="{{ url_for('static', filename='imagenes/logo.png') }}" alt="JLB Sports Logo">
+    </div>-->
+
+    <div class="brand-text">
+      <div class="brand-nombre">JLB Sports</div>
+   
+    </div>
+
+  </a>
+
+  <nav class="sidebar-nav">
+
+    <div class="nav-grupo-label">Principal</div>
+
+    <a href="{{ url_for('dashboard.dashboard') }}" class="nav-enlace {% if active_page == 'dashboard' %}activo{% endif %}">
+      <span class="nav-icono">🏠</span>
+      Panel Principal
+    </a>
+
+    <div class="nav-grupo-label">Módulos</div>
+
+    <a href="{{ url_for('inventory.product_list') }}" class="nav-enlace {% if active_page == 'inventory' %}activo{% endif %}">
+      <span class="nav-icono">📦</span>
+      Inventario
+
+      {% if low_stock_count and low_stock_count > 0 %}
+      <span class="nav-badge">{{ low_stock_count }}</span>
+      {% endif %}
+    </a>
+
+    <a href="{{ url_for('sales.sale_list') }}" class="nav-enlace {% if active_page == 'sales' %}activo{% endif %}">
+      <span class="nav-icono">🧾</span>
+      Ventas
+    </a>
+
+    <a href="{{ url_for('clients.client_list') }}" class="nav-enlace {% if active_page == 'clients' %}activo{% endif %}">
+      <span class="nav-icono">👥</span>
+      Clientes
+    </a>
+
+    <a href="{{ url_for('orders.order_list') }}" class="nav-enlace {% if active_page == 'orders' %}activo{% endif %}">
+      <span class="nav-icono">📋</span>
+      Pedidos
+    </a>
+
+    <a href="{{ url_for('quotes.quote_list') }}" class="nav-enlace {% if active_page == 'quotes' %}activo{% endif %}">
+      <span class="nav-icono">📄</span>
+      Cotizaciones
+    </a>
+
+    <a href="{{ url_for('pricing.pricing_overview') }}" class="nav-enlace {% if active_page == 'pricing' %}activo{% endif %}">
+      <span class="nav-icono">💰</span>
+      Precios
+    </a>
+
+  </nav>
+
+  <div class="sidebar-pie">
+    <form method="post" action="{{ url_for('auth.logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <button type="submit" class="sidebar-admin-link" style="width:100%;border:none;cursor:pointer;background:rgba(220,38,38,0.15);">
+        <span>🚪</span>
+        Cerrar Sesión
+      </button>
+    </form>
+  </div>
+
+</aside>
+
+<!-- ═══════════════ CONTENIDO ═══════════════ -->
+
+<div class="main-wrap">
+
+  <header class="topbar">
+
+    <div class="topbar-izq">
+      <span class="topbar-titulo">
+        {% block topbar_title %}JLB Sports{% endblock %}
+      </span>
+    </div>
+
+    <div class="topbar-der">
+      <span class="topbar-fecha" id="topbar-fecha"></span>
+      {% if current_user.is_authenticated %}
+      <span class="topbar-chip">👤 {{ current_user.username }}</span>
+      {% endif %}
+      <span class="topbar-chip" id="socket-status" title="Estado de conexión en tiempo real">🔴 Conectando…</span>
+    </div>
+
+  </header>
+
+  <main class="pagina-contenido">
+
+    {% with flashed = get_flashed_messages(with_categories=true) %}
+    {% if flashed %}
+    <div class="messages-wrap">
+
+      {% for category, msg in flashed %}
+      {% set tag = 'info' if category == 'message' else category %}
+      <div class="alerta alerta-{{ tag }}">
+
+        <span>
+          {% if tag == 'success' %}
+            ✅
+          {% elif tag == 'error' %}
+            ❌
+          {% elif tag == 'warning' %}
+            ⚠️
+          {% else %}
+            ℹ️
+          {% endif %}
+        </span>
+
+        <span>{{ msg }}</span>
+
+        <button class="alerta-cerrar" onclick="this.parentElement.remove()">
+          ×
+        </button>
+
+      </div>
+      {% endfor %}
+
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <div id="realtime-alerts-wrap" class="messages-wrap"></div>
+
+    {% block content %}{% endblock %}
+
+  </main>
+
+  <footer class="page-footer">
+    <span>© 2024 JLB Sports — Sistema de Gestión Comercial</span>
+    <span>Flask · PostgreSQL · Socket.IO</span>
+  </footer>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/realtime.js') }}"></script>
+
+<script>
+  const fecha = new Date();
+
+  document.getElementById("topbar-fecha").innerHTML =
+    fecha.toLocaleDateString("es-CO", {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+</script>
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

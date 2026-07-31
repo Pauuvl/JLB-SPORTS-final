@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+{% block title %}{% if product %}Editar Producto{% else %}Nuevo Producto{% endif %} — JLB Sports{% endblock %}
+{% block topbar_title %}{% if product %}Editar Producto{% else %}Nuevo Producto{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.seccion-form { margin-bottom: 26px; }
+.seccion-form-titulo {
+  font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--gris-texto);
+  margin-bottom: 14px; padding-bottom: 8px;
+  border-bottom: 2px solid var(--gris-borde);
+  display: flex; align-items: center; gap: 8px;
+}
+.color-stock-row {
+  display: grid; grid-template-columns: 1fr 120px auto;
+  gap: 10px; align-items: end; margin-bottom: 10px;
+}
+.color-stock-row input { margin: 0; }
+.btn-quitar-color {
+  background: none; border: 1px solid var(--gris-borde); border-radius: 6px;
+  padding: 8px 10px; cursor: pointer; color: var(--gris-texto);
+  transition: all 0.2s; height: 38px;
+}
+.btn-quitar-color:hover { background: var(--rojo-suave); color: var(--rojo); border-color: var(--rojo-borde); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">{% if product %}✏️ Editar Producto{% else %}➕ Nuevo Producto{% endif %}</h1>
+    <p class="seccion-subtitulo">{% if product %}Actualice los datos del producto{% else %}Complete el formulario para registrar{% endif %}</p>
+  </div>
+  <a href="{{ url_for('inventory.product_list') }}" class="btn btn-outline">← Volver al Inventario</a>
+</div>
+
+<div class="tarjeta" style="max-width:880px;">
+  <div class="tarjeta-cab">
+    <span class="tarjeta-titulo">📋 Información del Producto</span>
+    {% if product %}
+    <span class="badge {% if product.stock_quantity == 0 %}badge-rojo{% elif product.is_low_stock %}badge-amarillo{% else %}badge-verde{% endif %}">
+      {% if product.stock_quantity == 0 %}🚫 Agotado{% elif product.is_low_stock %}⚠️ Stock Bajo{% else %}✓ Disponible{% endif %}
+    </span>
+    {% endif %}
+  </div>
+  <div class="tarjeta-cuerpo">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <!-- 1. Identificación -->
+      <div class="seccion-form">
+        <div class="seccion-form-titulo">🏷️ 1 · Identificación</div>
+        <div class="form-grid">
+          <div class="form-grupo">
+            <label>Código del Producto</label>
+            <input type="text" name="codigo" value="{{ product.codigo|default('', true) }}" placeholder="Ej: JLB-001">
+          </div>
+          <div class="form-grupo">
+            <label>Categoría</label>
+            <select name="category">
+              <option value="">— Sin categoría —</option>
+              {% for cat in categories %}
+              <option value="{{ cat.pk }}" {% if product.category_id == cat.pk %}selected{% endif %}>{{ cat.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-grupo full">
+            <label>Nombre del Producto *</label>
+            <input type="text" name="name" value="{{ product.name|default('', true) }}" required placeholder="Ej: Balón Strike Pro, Guayos Copa...">
+          </div>
+          <div class="form-grupo">
+            <label>Marca</label>
+            <input type="text" name="marca" value="{{ product.marca|default('', true) }}" placeholder="Ej: Nike, Adidas, Puma...">
+          </div>
+          <div class="form-grupo">
+            <label>Talla</label>
+            <input type="text" name="talla" value="{{ product.talla|default('', true) }}" placeholder="Ej: 42, M, XL, Única...">
+          </div>
+          <div class="form-grupo full">
+            <label>Color(es) disponibles</label>
+            <input type="text" id="id_color" name="color" value="{{ product.color|default('', true) }}" placeholder="Ej: Rojo, Azul, Negro">
+            <span class="form-pista">Separe con comas. Se usarán para configurar el stock por color abajo.</span>
+          </div>
+          <div class="form-grupo full">
+            <label>Descripción</label>
+            <textarea name="description" rows="2" placeholder="Descripción opcional...">{{ product.description|default('', true) }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Precios -->
+      <div class="seccion-form">
+        <div class="seccion-form-titulo">💰 2 · Precios (COP)</div>
+        <div class="form-grid">
+          <div class="form-grupo">
+            <label>Precio de Costo ($) *</label>
+            <input type="number" name="cost_price" id="id_cost_price"
+                   value="{{ product.cost_price|floatformat(0)|default('', true) }}"
+                   step="1" min="0" required
+                   placeholder="Ej: 85000"
+                   oninput="calcularMargen()">
+          </div>
+          <div class="form-grupo">
+            <label>Precio de Venta ($) *</label>
+            <input type="number" name="sale_price" id="id_sale_price"
+                   value="{{ product.sale_price|floatformat(0)|default('', true) }}"
+                   step="1" min="0" required
+                   placeholder="Ej: 150000"
+                   oninput="calcularMargen()">
+          </div>
+        </div>
+        <div id="preview-precios" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;background:var(--gris-fondo);border:1px solid var(--gris-borde);border-radius:var(--radio-sm);padding:14px 20px;margin-top:14px;">
+          <div>
+            <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--gris-texto);font-weight:700;margin-bottom:4px;">Costo</div>
+            <div id="prev-costo" style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;">$0</div>
+          </div>
+          <div>
+            <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--gris-texto);font-weight:700;margin-bottom:4px;">Precio Venta</div>
+            <div id="prev-venta" style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;">$0</div>
+          </div>
+          <div>
+            <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--gris-texto);font-weight:700;margin-bottom:4px;">Ganancia Unit.</div>
+            <div id="prev-ganancia" style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;">$0</div>
+          </div>
+          <div>
+            <div style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1px;color:var(--gris-texto);font-weight:700;margin-bottom:4px;">Margen %</div>
+            <div id="prev-margen" style="font-family:'Barlow Condensed',sans-serif;font-size:1.3rem;font-weight:700;">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Inventario -->
+      <div class="seccion-form">
+        <div class="seccion-form-titulo">📦 3 · Control de Inventario</div>
+        <div class="form-grid">
+          <div class="form-grupo">
+            <label>Existencias Totales *</label>
+            <input type="number" name="stock_quantity" value="{{ product.stock_quantity|default(0, true) }}" min="0" required>
+            <span class="form-pista">Stock general. Si usa stock por color, mantenga este valor como el total.</span>
+          </div>
+          <div class="form-grupo">
+            <label>Stock Mínimo (Alerta)</label>
+            <input type="number" name="min_stock" value="{{ product.min_stock|default(5, true) }}" min="0">
+            <span class="form-pista">Alerta ⚠️ cuando llegue a este valor</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Stock por color -->
+      <div class="seccion-form">
+        <div class="seccion-form-titulo">🎨 4 · Stock por Color (opcional)</div>
+        <div id="color-stocks-container">
+          {% if color_stocks %}
+            {% for cs in color_stocks %}
+            <div class="color-stock-row">
+              <div class="form-grupo" style="margin:0;">
+                <label>Color</label>
+                <input type="text" name="color_nombre[]" value="{{ cs.color }}" placeholder="Ej: Rojo">
+              </div>
+              <div class="form-grupo" style="margin:0;">
+                <label>Stock</label>
+                <input type="number" name="color_stock[]" value="{{ cs.stock }}" min="0">
+              </div>
+              <div>
+                <label style="visibility:hidden;display:block;font-size:0.75rem;margin-bottom:6px;">-</label>
+                <button type="button" class="btn-quitar-color" onclick="this.closest('.color-stock-row').remove()">✕</button>
+              </div>
+            </div>
+            {% endfor %}
+          {% endif %}
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="agregarColorStock()" style="margin-top:8px;">
+          + Agregar color
+        </button>
+        <div class="form-pista" style="margin-top:8px;">
+          Al vender, el sistema descontará del stock del color seleccionado. Si no hay stock por color definido, solo se descuenta el stock general.
+        </div>
+      </div>
+
+      <div class="form-acciones">
+        <a href="{{ url_for('inventory.product_list') }}" class="btn btn-outline">Cancelar</a>
+        <button type="submit" class="btn btn-rojo">
+          {% if product %}💾 Guardar Cambios{% else %}✅ Registrar Producto{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function formatoPesos(v) {
+  const n = parseInt(v) || 0;
+  return '$' + n.toLocaleString('es-CO').replace(/,/g, '.');
+}
+
+function calcularMargen() {
+  const costo   = parseInt(document.getElementById('id_cost_price').value) || 0;
+  const venta   = parseInt(document.getElementById('id_sale_price').value) || 0;
+  const ganancia = venta - costo;
+  const margen  = costo > 0 ? ((ganancia / costo) * 100).toFixed(1) : 0;
+  const colorM  = margen >= 30 ? 'var(--verde)' : margen >= 15 ? 'var(--amarillo)' : 'var(--rojo)';
+  const colorG  = ganancia >= 0 ? 'var(--verde)' : 'var(--rojo)';
+  document.getElementById('prev-costo').textContent       = formatoPesos(costo);
+  document.getElementById('prev-venta').textContent       = formatoPesos(venta);
+  document.getElementById('prev-ganancia').textContent    = formatoPesos(ganancia);
+  document.getElementById('prev-ganancia').style.color    = colorG;
+  document.getElementById('prev-margen').textContent      = margen + '%';
+  document.getElementById('prev-margen').style.color      = colorM;
+}
+
+function agregarColorStock() {
+  const container = document.getElementById('color-stocks-container');
+  const div = document.createElement('div');
+  div.className = 'color-stock-row';
+  div.innerHTML = `
+    <div class="form-grupo" style="margin:0;">
+      <label>Color</label>
+      <input type="text" name="color_nombre[]" placeholder="Ej: Negro">
+    </div>
+    <div class="form-grupo" style="margin:0;">
+      <label>Stock</label>
+      <input type="number" name="color_stock[]" value="0" min="0">
+    </div>
+    <div>
+      <label style="visibility:hidden;display:block;font-size:0.75rem;margin-bottom:6px;">-</label>
+      <button type="button" class="btn-quitar-color" onclick="this.closest('.color-stock-row').remove()">✕</button>
+    </div>
+  `;
+  container.appendChild(div);
+  div.querySelector('input[name="color_nombre[]"]').focus();
+}
+
+// Calcular al cargar la página (muestra los valores actuales del producto)
+calcularMargen();
+</script>
+{% endblock %}

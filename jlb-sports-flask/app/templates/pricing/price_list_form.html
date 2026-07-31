@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Nueva Lista de Precios{% endblock %}
+{% block topbar_title %}Nueva Lista de Precios{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <h1 class="seccion-titulo">Nueva Lista de Precios</h1>
+  <a href="{{ url_for('pricing.pricing_overview') }}" class="btn btn-outline">← Volver</a>
+</div>
+<div class="tarjeta" style="max-width:620px;">
+  <div class="tarjeta-cab"><span class="tarjeta-titulo">📋 Configuración</span></div>
+  <div class="tarjeta-cuerpo">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+      <div class="form-grid">
+        <div class="form-grupo full">
+          <label>Nombre *</label>
+          <input type="text" name="name" required placeholder="Ej: Precios Mayorista 2024">
+        </div>
+        <div class="form-grupo">
+          <label>Tipo de Cliente</label>
+          <select name="client_type">
+            <option value="">— Todos los tipos —</option>
+            {% for val, label in client_types %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-grupo full">
+          <label>Descripción</label>
+          <textarea name="description" rows="2" placeholder="Opcional..."></textarea>
+        </div>
+      </div>
+      <div class="form-acciones">
+        <a href="{{ url_for('pricing.pricing_overview') }}" class="btn btn-outline">Cancelar</a>
+        <button type="submit" class="btn btn-rojo">➕ Crear Lista</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

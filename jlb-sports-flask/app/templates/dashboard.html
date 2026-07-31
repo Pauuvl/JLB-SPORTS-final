@@ -1,0 +1,421 @@
+{% extends 'base.html' %}
+{% block title %}Panel Principal — JLB Sports{% endblock %}
+{% block topbar_title %}Panel Principal{% endblock %}
+
+{% block content %}
+
+<!-- Banner alerta stock bajo -->
+{% if low_stock_count > 0 or out_of_stock > 0 %}
+<div class="banner-alerta">
+  <span class="banner-alerta-icono">⚠️</span>
+  <div>
+    <div class="banner-alerta-texto">Alertas de inventario activas</div>
+    <div class="banner-alerta-sub">
+      {% if out_of_stock > 0 %}{{ out_of_stock }} producto{{ out_of_stock|pluralize }} agotado{{ out_of_stock|pluralize }}{% endif %}
+      {% if low_stock_count > 0 %}{% if out_of_stock > 0 %} · {% endif %}{{ low_stock_count }} con stock bajo{% endif %}
+    </div>
+  </div>
+  <a href="{{ url_for('inventory.product_list') }}?stock=bajo" class="btn-blanco">Ver inventario →</a>
+</div>
+{% endif %}
+
+<!-- Encabezado -->
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">Panel Principal</h1>
+    <p class="seccion-subtitulo">Resumen general del sistema JLB Sports</p>
+  </div>
+  <div class="seccion-acciones">
+    <a href="{{ url_for('sales.sale_create') }}" class="btn btn-rojo">+ Registrar Venta</a>
+  </div>
+</div>
+
+<!-- ── Estadísticas ─────────────────────────────────── -->
+<div class="stats-grid">
+  <div class="stat-card negro">
+    <div class="stat-icono">📦</div>
+    <div>
+      <div class="stat-valor">{{ total_products }}</div>
+      <div class="stat-etiqueta">Total Productos</div>
+    </div>
+  </div>
+  <div class="stat-card rojo">
+    <div class="stat-icono">⚠️</div>
+    <div>
+      <div class="stat-valor">{{ low_stock_count }}</div>
+      <div class="stat-etiqueta">Stock Bajo</div>
+    </div>
+  </div>
+  <div class="stat-card amarillo">
+    <div class="stat-icono">🚫</div>
+    <div>
+      <div class="stat-valor">{{ out_of_stock }}</div>
+      <div class="stat-etiqueta">Agotados</div>
+    </div>
+  </div>
+  <div class="stat-card verde">
+    <div class="stat-icono">🧾</div>
+    <div>
+      <div class="stat-valor">{{ total_sales }}</div>
+      <div class="stat-etiqueta">Ventas Completadas</div>
+    </div>
+  </div>
+  <div class="stat-card verde">
+    <div class="stat-icono">💵</div>
+    <div>
+      <div class="stat-valor" style="font-size:1.4rem;">{{ total_revenue|pesos }}</div>
+      <div class="stat-etiqueta">Total Facturado</div>
+    </div>
+  </div>
+  <div class="stat-card azul">
+    <div class="stat-icono">👥</div>
+    <div>
+      <div class="stat-valor">{{ total_clients }}</div>
+      <div class="stat-etiqueta">Clientes</div>
+    </div>
+  </div>
+  <div class="stat-card negro">
+    <div class="stat-icono">📅</div>
+    <div>
+      <div class="stat-valor">{{ sales_today }}</div>
+      <div class="stat-etiqueta">Ventas de Hoy</div>
+    </div>
+  </div>
+  <div class="stat-card verde">
+    <div class="stat-icono">📈</div>
+    <div>
+      <div class="stat-valor">{{ sales_month }}</div>
+      <div class="stat-etiqueta">Ventas del Mes</div>
+    </div>
+  </div>
+  <div class="stat-card verde">
+    <div class="stat-icono">💰</div>
+    <div>
+      <div class="stat-valor" style="font-size:1.4rem;">{{ revenue_month|pesos }}</div>
+      <div class="stat-etiqueta">Ingresos del Mes</div>
+    </div>
+  </div>
+  <div class="stat-card amarillo">
+    <div class="stat-icono">⏳</div>
+    <div>
+      <div class="stat-valor">{{ pending_orders }}</div>
+      <div class="stat-etiqueta">Pedidos Pendientes</div>
+    </div>
+  </div>
+  <div class="stat-card azul">
+    <div class="stat-icono">🕒</div>
+    <div>
+      <div class="stat-valor" style="font-size:1rem;">
+        {% if last_sale %}{{ last_sale.total_amount|pesos }} · {{ last_sale.created_at }}{% else %}—{% endif %}
+      </div>
+      <div class="stat-etiqueta">Última Venta</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Grilla principal ─────────────────────────────── -->
+<div class="dash-grid">
+
+  <!-- Ventas recientes -->
+  <div class="tarjeta">
+    <div class="tarjeta-cab">
+      <span class="tarjeta-titulo">🧾 Ventas Recientes</span>
+      <a href="{{ url_for('sales.sale_list') }}" class="btn btn-ghost btn-sm">Ver todas →</a>
+    </div>
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Cliente</th>
+            <th>Total</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for v in recent_sales %}
+          <tr>
+            <td><a href="{{ url_for('sales.sale_detail', pk=v.pk) }}" class="bold txt-rojo">#{{ v.pk }}</a></td>
+            <td>{{ v.client.name if v.client else "Mostrador" }}</td>
+            <td class="bold">{{ v.total_amount|pesos }}</td>
+            <td class="td-muted">{{ v.created_at|django_date("d/m/Y") }}</td>
+            <td>
+              {% if v.status == 'completed' %}
+                <span class="badge badge-verde">✓ Completada</span>
+              {% else %}
+                <span class="badge badge-rojo">✕ Anulada</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">
+            <div class="estado-vacio" style="padding:28px">
+              <div class="estado-vacio-titulo">Sin ventas aún</div>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Alertas de stock -->
+  <div class="tarjeta">
+    <div class="tarjeta-cab">
+      <span class="tarjeta-titulo">⚠️ Alertas de Stock</span>
+      <a href="{{ url_for('inventory.product_list') }}?stock=bajo" class="btn btn-ghost btn-sm">Ver todos →</a>
+    </div>
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Disponible</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in low_stock_products %}
+          <tr class="fila-stock-bajo">
+            <td>
+              <a href="{{ url_for('inventory.product_edit', pk=p.pk) }}" class="bold" style="color:var(--negro);">
+                {{ p.name }}
+              </a>
+            </td>
+            <td class="bold txt-rojo">{{ p.stock_quantity }} und.</td>
+            <td>
+              {% if p.stock_quantity == 0 %}
+                <span class="badge badge-rojo">Agotado</span>
+              {% else %}
+                <span class="badge badge-amarillo">Stock Bajo</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3">
+            <div class="estado-vacio" style="padding:28px;">
+              <div class="estado-vacio-titulo" style="color:var(--verde);">
+                ✅ Todo el stock en nivel óptimo
+              </div>
+            </div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Productos más vendidos ───────────────────────── -->
+<div class="tarjeta mt-3">
+  <div class="tarjeta-cab" style="flex-wrap:wrap;gap:10px;">
+    <span class="tarjeta-titulo">🏆 Productos Más Vendidos</span>
+    <div class="filtros-periodo" id="top-products-filters">
+      <button class="btn btn-sm btn-outline" data-period="today">Hoy</button>
+      <button class="btn btn-sm btn-outline" data-period="week">Esta semana</button>
+      <button class="btn btn-sm btn-rojo" data-period="month">Este mes</button>
+      <button class="btn btn-sm btn-outline" data-period="year">Este año</button>
+      <button class="btn btn-sm btn-outline" data-period="all">Todo</button>
+    </div>
+  </div>
+  <div class="tarjeta-cuerpo">
+    <div class="top-products-grid">
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Producto</th><th>Cant.</th><th>Ingresos</th><th>Stock</th><th>% Participación</th>
+            </tr>
+          </thead>
+          <tbody id="top-products-tbody">
+            <tr><td colspan="6" class="td-muted" style="text-align:center;padding:20px;">Cargando…</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="top-products-charts">
+        <canvas id="topProductsBarChart" height="220"></canvas>
+        <canvas id="topProductsPieChart" height="220"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Estadísticas ──────────────────────────────────── -->
+<div class="tarjeta mt-3">
+  <div class="tarjeta-cab">
+    <span class="tarjeta-titulo">📊 Estadísticas Generales</span>
+  </div>
+  <div class="tarjeta-cuerpo">
+    <div class="stats-charts-grid">
+      <div class="stat-chart-box">
+        <p class="chart-titulo">Ventas por día (últimos 14 días)</p>
+        <canvas id="salesByDayChart" height="200"></canvas>
+      </div>
+      <div class="stat-chart-box">
+        <p class="chart-titulo">Ingresos por mes (últimos 12 meses)</p>
+        <canvas id="revenueByMonthChart" height="200"></canvas>
+      </div>
+      <div class="stat-chart-box">
+        <p class="chart-titulo">Categorías con mayores ventas</p>
+        <canvas id="categoriesSalesChart" height="200"></canvas>
+      </div>
+      <div class="stat-chart-box">
+        <p class="chart-titulo">Inventario por categoría</p>
+        <canvas id="inventoryByCategoryChart" height="200"></canvas>
+      </div>
+    </div>
+    <div class="stat-chart-box mt-3">
+      <p class="chart-titulo">⚠️ Productos con bajo stock</p>
+      <canvas id="lowStockChart" height="140"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ── Acciones rápidas ─────────────────────────────── -->
+<div class="tarjeta mt-3">
+  <div class="tarjeta-cab">
+    <span class="tarjeta-titulo">⚡ Acciones Rápidas</span>
+  </div>
+  <div class="tarjeta-cuerpo" style="display:flex;gap:12px;flex-wrap:wrap;">
+    <a href="{{ url_for('sales.sale_create') }}"    class="btn btn-rojo">🧾 Nueva Venta</a>
+    <a href="{{ url_for('inventory.product_create') }}" class="btn btn-negro">📦 Nuevo Producto</a>
+    <a href="{{ url_for('clients.client_create') }}"  class="btn btn-outline">👤 Nuevo Cliente</a>
+    <a href="{{ url_for('orders.order_create') }}"   class="btn btn-outline">📋 Nuevo Pedido</a>
+    <a href="{{ url_for('inventory.category_list') }}"  class="btn btn-outline">🏷️ Categorías</a>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+(function () {
+  const pesos = (v) => '$' + Math.round(v).toLocaleString('es-CO').replace(/,/g, '.');
+  const paleta = ['#DC2626', '#111827', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316', '#64748B'];
+
+  let barChart, pieChart, dayChart, monthChart, catChart, invChart, lowChart;
+
+  function destroyIf(chart) { if (chart) chart.destroy(); }
+
+  function loadTopProducts(period) {
+    fetch(`/dashboard/api/top-products/?period=${period}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const tbody = document.getElementById('top-products-tbody');
+        if (!data.products.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="td-muted" style="text-align:center;padding:20px;">Sin ventas en este periodo</td></tr>';
+        } else {
+          tbody.innerHTML = data.products.map((p, i) => `
+            <tr>
+              <td>${i + 1}</td>
+              <td class="bold">${p.name}</td>
+              <td>${p.cantidad_vendida}</td>
+              <td>${pesos(p.ingresos)}</td>
+              <td>${p.stock_restante}</td>
+              <td>${p.porcentaje}%</td>
+            </tr>`).join('');
+        }
+
+        const labels = data.products.map((p) => p.name);
+        const cantidades = data.products.map((p) => p.cantidad_vendida);
+
+        destroyIf(barChart);
+        barChart = new Chart(document.getElementById('topProductsBarChart'), {
+          type: 'bar',
+          data: { labels, datasets: [{ label: 'Unidades vendidas', data: cantidades, backgroundColor: '#DC2626' }] },
+          options: { responsive: true, plugins: { legend: { display: false } } },
+        });
+
+        destroyIf(pieChart);
+        pieChart = new Chart(document.getElementById('topProductsPieChart'), {
+          type: 'doughnut',
+          data: { labels, datasets: [{ data: cantidades, backgroundColor: paleta }] },
+          options: { responsive: true },
+        });
+      })
+      .catch(() => {});
+  }
+
+  document.querySelectorAll('#top-products-filters button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#top-products-filters button').forEach((b) => b.className = 'btn btn-sm btn-outline');
+      btn.className = 'btn btn-sm btn-rojo';
+      loadTopProducts(btn.dataset.period);
+    });
+  });
+
+  function loadCharts() {
+    fetch('/dashboard/api/charts/')
+      .then((r) => r.json())
+      .then((data) => {
+        destroyIf(dayChart);
+        dayChart = new Chart(document.getElementById('salesByDayChart'), {
+          type: 'line',
+          data: {
+            labels: data.sales_by_day.map((d) => d.label),
+            datasets: [{ label: 'Ventas', data: data.sales_by_day.map((d) => d.ventas), borderColor: '#DC2626', backgroundColor: 'rgba(220,38,38,0.1)', fill: true, tension: 0.3 }],
+          },
+          options: { responsive: true, plugins: { legend: { display: false } } },
+        });
+
+        destroyIf(monthChart);
+        monthChart = new Chart(document.getElementById('revenueByMonthChart'), {
+          type: 'bar',
+          data: {
+            labels: data.revenue_by_month.map((d) => d.label),
+            datasets: [{ label: 'Ingresos', data: data.revenue_by_month.map((d) => d.ingresos), backgroundColor: '#111827' }],
+          },
+          options: { responsive: true, plugins: { legend: { display: false } } },
+        });
+
+        destroyIf(catChart);
+        catChart = new Chart(document.getElementById('categoriesSalesChart'), {
+          type: 'doughnut',
+          data: {
+            labels: data.categories_sales.map((d) => d.label),
+            datasets: [{ data: data.categories_sales.map((d) => d.value), backgroundColor: paleta }],
+          },
+          options: { responsive: true },
+        });
+
+        destroyIf(invChart);
+        invChart = new Chart(document.getElementById('inventoryByCategoryChart'), {
+          type: 'bar',
+          data: {
+            labels: data.inventory_by_category.map((d) => d.label),
+            datasets: [{ label: 'Unidades en stock', data: data.inventory_by_category.map((d) => d.value), backgroundColor: '#3B82F6' }],
+          },
+          options: { responsive: true, indexAxis: 'y', plugins: { legend: { display: false } } },
+        });
+
+        destroyIf(lowChart);
+        lowChart = new Chart(document.getElementById('lowStockChart'), {
+          type: 'bar',
+          data: {
+            labels: data.low_stock.map((d) => d.name),
+            datasets: [
+              { label: 'Stock actual', data: data.low_stock.map((d) => d.stock), backgroundColor: '#F59E0B' },
+              { label: 'Stock mínimo', data: data.low_stock.map((d) => d.min_stock), backgroundColor: '#E5E7EB' },
+            ],
+          },
+          options: { responsive: true, indexAxis: 'y' },
+        });
+      })
+      .catch(() => {});
+  }
+
+  loadTopProducts('month');
+  loadCharts();
+
+  // Cuando llega un evento de negocio por Socket.IO (venta, stock, etc.)
+  // se refrescan gráficas y KPIs automáticamente sin recargar la página.
+  document.addEventListener('jlb:dashboard_refresh', () => {
+    const activeBtn = document.querySelector('#top-products-filters .btn-rojo');
+    loadTopProducts(activeBtn ? activeBtn.dataset.period : 'month');
+    loadCharts();
+  });
+})();
+</script>
+{% endblock %}

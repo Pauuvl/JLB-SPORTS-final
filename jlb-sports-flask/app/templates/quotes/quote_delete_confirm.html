@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Eliminar Cotización #{{ quote.pk }}{% endblock %}
+{% block topbar_title %}Eliminar Cotización{% endblock %}
+{% block content %}
+<div class="tarjeta" style="max-width:500px;">
+  <div class="tarjeta-cab"><span class="tarjeta-titulo">🗑️ Eliminar Cotización #{{ quote.pk }}</span></div>
+  <div class="tarjeta-cuerpo">
+    <p style="margin-bottom:16px;">¿Eliminar la cotización de <strong>{{ quote.display_client }}</strong> por <strong>{{ quote.total_amount|pesos }}</strong>?</p>
+    <div style="background:#FDF2F2;border:1px solid var(--rojo-borde);border-radius:8px;padding:12px;margin-bottom:20px;font-size:0.85rem;color:var(--rojo);">
+      ⚠️ Acción irreversible. El inventario no se verá afectado.
+    </div>
+    <div class="form-acciones">
+      <a href="{{ url_for('quotes.quote_detail', pk=quote.pk) }}" class="btn btn-outline">Cancelar</a>
+      <form method="post" style="display:inline;"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="btn btn-rojo">🗑️ Eliminar</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

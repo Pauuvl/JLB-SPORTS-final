@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+{% block title %}Ventas — JLB Sports{% endblock %}
+{% block topbar_title %}Ventas{% endblock %}
+
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">Ventas</h1>
+    <p class="seccion-subtitulo">Historial de transacciones · Total facturado: <strong>{{ total_completadas|pesos }}</strong></p>
+  </div>
+  <a href="{{ url_for('sales.sale_create') }}" class="btn btn-rojo">+ Registrar Venta</a>
+</div>
+
+<div class="tarjeta">
+  <div class="tarjeta-cab">
+    <span class="tarjeta-titulo">🧾 Transacciones ({{ sales|length }})</span>
+  </div>
+  <div class="tabla-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>N° Venta</th>
+          <th>Cliente</th>
+          <th>Artículos</th>
+          <th>Descuento</th>
+          <th>Total</th>
+          <th>Fecha</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in sales %}
+        <tr>
+          <td><a href="{{ url_for('sales.sale_detail', pk=v.pk) }}" class="bold txt-rojo">#{{ v.pk }}</a></td>
+          <td class="bold">{{ v.client.name if v.client else "Mostrador" }}</td>
+          <td class="td-muted">{{ v.items|length }} art.</td>
+          <td class="td-muted">{% if v.discount_applied %}<span class="badge badge-verde">{{ v.discount_applied }}%</span>{% else %}—{% endif %}</td>
+          <td class="bold">{{ v.total_amount|pesos }}</td>
+          <td class="td-muted">{{ v.created_at|django_date("d/m/Y H:i") }}</td>
+          <td>
+            {% if v.status == 'completed' %}
+              <span class="badge badge-verde">✓ Completada</span>
+            {% else %}
+              <span class="badge badge-rojo">✕ Anulada</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="td-acciones">
+              <a href="{{ url_for('sales.sale_detail', pk=v.pk) }}" class="btn btn-outline btn-sm">Ver</a>
+              {% if v.status == 'completed' %}
+              <a href="{{ url_for('sales.sale_cancel', pk=v.pk) }}" class="btn btn-sm" style="background:var(--rojo-suave);color:var(--rojo);border:1px solid var(--rojo-borde);">Anular</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8">
+          <div class="estado-vacio">
+            <div class="estado-vacio-icono">🧾</div>
+            <div class="estado-vacio-titulo">No hay ventas registradas</div>
+            <div class="estado-vacio-texto"><a href="{{ url_for('sales.sale_create') }}" class="txt-rojo">Registrar primera venta</a></div>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

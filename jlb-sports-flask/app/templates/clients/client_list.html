@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Clientes — JLB Sports{% endblock %}
+{% block topbar_title %}Clientes{% endblock %}
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">Clientes</h1>
+    <p class="seccion-subtitulo">Gestión de clientes y tipos de precio</p>
+  </div>
+  <a href="{{ url_for('clients.client_create') }}" class="btn btn-rojo">+ Nuevo Cliente</a>
+</div>
+
+<form method="get" class="filtros-barra">
+  <div class="busqueda-wrap">
+    <span class="busqueda-icono">🔍</span>
+    <input type="text" name="q" value="{{ query }}" placeholder="Buscar cliente...">
+  </div>
+  <select name="type" style="width:auto;min-width:170px;" onchange="this.form.submit()">
+    <option value="">Todos los tipos</option>
+    {% for val, label in client_types %}
+    <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-outline">Filtrar</button>
+  {% if query or selected_type %}<a href="{{ url_for('clients.client_list') }}" class="btn btn-ghost">✕ Limpiar</a>{% endif %}
+</form>
+
+<div class="tarjeta">
+  <div class="tarjeta-cab">
+    <span class="tarjeta-titulo">👥 Clientes ({{ clients|length }})</span>
+  </div>
+  <div class="tabla-wrap">
+    <table>
+      <thead>
+        <tr><th>Nombre</th><th>Tipo</th><th>Correo</th><th>Teléfono</th><th>Descuento</th><th>Desde</th><th>Acciones</th></tr>
+      </thead>
+      <tbody>
+        {% for c in clients %}
+        <tr>
+          <td><a href="{{ url_for('clients.client_detail', pk=c.pk) }}" class="bold" style="color:var(--negro);">{{ c.name }}</a></td>
+          <td>
+            {% if c.client_type == 'vip' %}<span class="badge badge-rojo">⭐ VIP</span>
+            {% elif c.client_type == 'company' %}<span class="badge badge-azul">🏢 Empresa</span>
+            {% elif c.client_type == 'wholesale' %}<span class="badge badge-verde">📦 Mayorista</span>
+            {% else %}<span class="badge badge-gris">👤 Regular</span>{% endif %}
+          </td>
+          <td class="td-muted">{{ c.email|default("—", true) }}</td>
+          <td class="td-muted">{{ c.phone|default("—", true) }}</td>
+          <td>{% if c.discount_percent %}<span class="badge badge-verde">{{ c.discount_percent }}% extra</span>{% else %}<span class="td-muted">—</span>{% endif %}</td>
+          <td class="td-muted">{{ c.created_at|django_date("M Y") }}</td>
+          <td>
+            <div class="td-acciones">
+              <a href="{{ url_for('clients.client_edit', pk=c.pk) }}" class="btn btn-outline btn-sm">✏️ Editar</a>
+              <a href="{{ url_for('clients.client_delete', pk=c.pk) }}" class="btn btn-sm" style="background:var(--rojo-suave);color:var(--rojo);border:1px solid var(--rojo-borde);">🗑️</a>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7">
+          <div class="estado-vacio">
+            <div class="estado-vacio-icono">👥</div>
+            <div class="estado-vacio-titulo">No hay clientes registrados</div>
+            <div class="estado-vacio-texto"><a href="{{ url_for('clients.client_create') }}" class="txt-rojo">Agregar primer cliente</a></div>
+          </div>
+        </td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

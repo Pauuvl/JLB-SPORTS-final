@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+{% block title %}Pedido #{{ order.pk }} — JLB Sports{% endblock %}
+{% block topbar_title %}Detalle de Pedido{% endblock %}
+{% block content %}
+
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">Pedido #{{ order.pk }}</h1>
+    <p class="seccion-subtitulo">{{ order.created_at|django_date("d \d\e F \d\e Y H:i") }}</p>
+  </div>
+  <div class="seccion-acciones">
+    {% if order.status == 'pending' %}
+      <form method="post" action="{{ url_for('orders.order_confirm', pk=order.pk) }}" style="display:inline;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+        <button type="submit" class="btn btn-verde">✓ Confirmar Pedido</button>
+      </form>
+      <a href="{{ url_for('orders.order_cancel', pk=order.pk) }}" class="btn btn-outline" style="color:var(--rojo);border-color:var(--rojo);">✕ Cancelar</a>
+    {% endif %}
+    {% if order.status == 'confirmed' %}
+      <a href="{{ url_for('orders.order_to_sale', pk=order.pk) }}" class="btn btn-rojo">💰 Registrar como Venta</a>
+      <a href="{{ url_for('orders.order_delete', pk=order.pk) }}" class="btn btn-outline" style="color:var(--rojo);border-color:var(--rojo);">🗑️ Eliminar</a>
+    {% endif %}
+    {% if order.status == 'pending' or order.status == 'cancelled' %}
+      <a href="{{ url_for('orders.order_delete', pk=order.pk) }}" class="btn btn-outline" style="color:var(--rojo);border-color:var(--rojo);">🗑️ Eliminar</a>
+    {% endif %}
+    <a href="{{ url_for('orders.order_list') }}" class="btn btn-outline">← Volver</a>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 300px;gap:22px;align-items:start;">
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">📦 Artículos del Pedido</span></div>
+    <div class="tabla-wrap">
+      <table>
+        <thead>
+          <tr><th>Producto</th><th>Precio Unit.</th><th>Cantidad</th><th>Stock Actual</th><th style="text-align:right">Subtotal</th></tr>
+        </thead>
+        <tbody>
+          {% for item in order.items.all %}
+          <tr>
+            <td class="bold">{{ item.product.name }}</td>
+            <td>{{ item.unit_price|pesos }}</td>
+            <td>{{ item.quantity }} und.</td>
+            <td>
+              {% if order.status == 'pending' %}
+                {% if item.product.stock_quantity >= item.quantity %}
+                  <span class="badge badge-verde">{{ item.product.stock_quantity }} disp. ✓</span>
+                {% else %}
+                  <span class="badge badge-rojo">⚠️ Solo {{ item.product.stock_quantity }}</span>
+                {% endif %}
+              {% else %}
+                <span class="td-muted">{{ item.product.stock_quantity }} und.</span>
+              {% endif %}
+            </td>
+            <td style="text-align:right" class="bold">{{ item.subtotal|pesos }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr style="background:var(--gris-fondo);">
+            <td colspan="4" class="bold" style="padding:12px 16px;text-align:right;">TOTAL</td>
+            <td style="padding:12px 16px;text-align:right;font-family:'Barlow Condensed',sans-serif;font-size:1.2rem;font-weight:800;color:var(--rojo);">
+              {{ order.total_amount|pesos }}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="tarjeta-cab"><span class="tarjeta-titulo">📋 Información</span></div>
+    <div class="tarjeta-cuerpo">
+      <div class="info-linea">
+        <span class="td-muted">Cliente</span>
+        <span class="bold">{{ order.client.name if order.client else "Mostrador" }}</span>
+      </div>
+      <div class="info-linea">
+        <span class="td-muted">Estado</span>
+        <span>
+          {% if order.status == 'pending' %}<span class="badge badge-amarillo">⏳ Pendiente</span>
+          {% elif order.status == 'confirmed' %}<span class="badge badge-verde">✓ Confirmado</span>
+          {% elif order.status == 'converted' %}<span class="badge badge-azul">💰 Convertido a Venta</span>
+          {% else %}<span class="badge badge-rojo">✕ Cancelado</span>{% endif %}
+        </span>
+      </div>
+      {% if order.confirmed_at %}
+      <div class="info-linea">
+        <span class="td-muted">Confirmado</span>
+        <span>{{ order.confirmed_at|django_date("d/m/Y H:i") }}</span>
+      </div>
+      {% endif %}
+      <div class="info-linea" style="padding-top:12px;margin-top:4px;border-top:2px solid var(--gris-borde);">
+        <span class="bold">TOTAL</span>
+        <span class="info-total-valor">{{ order.total_amount|pesos }}</span>
+      </div>
+
+      {% if order.status == 'pending' %}
+      <div class="alerta alerta-warning mt-2" style="font-size:0.78rem;padding:9px 12px;">
+        ⚠️ Confirme el pedido para descontar el stock.
+      </div>
+      {% elif order.status == 'confirmed' %}
+      <div class="alerta mt-2" style="font-size:0.78rem;padding:9px 12px;background:var(--verde-suave,#eafaf1);border:1px solid #27ae60;border-radius:8px;color:#1e8449;">
+        ✓ Stock descontado. Registre la venta para que quede en el historial.
+      </div>
+      {% elif order.status == 'converted' %}
+      <div class="alerta mt-2" style="font-size:0.78rem;padding:9px 12px;background:#EBF5FB;border:1px solid #2980b9;border-radius:8px;color:#1a5276;">
+        💰 Este pedido ya fue registrado como venta.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

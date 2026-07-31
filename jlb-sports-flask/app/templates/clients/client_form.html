@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% block title %}{% if client %}Editar{% else %}Nuevo{% endif %} Cliente — JLB Sports{% endblock %}
+{% block topbar_title %}{% if client %}Editar Cliente{% else %}Nuevo Cliente{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-section { margin-bottom: 24px; }
+.form-section-title {
+  font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--gris-texto); margin-bottom: 14px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--gris-borde);
+  display: flex; align-items: center; gap: 8px;
+}
+.form-grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+.form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media(max-width:700px){ .form-grid-3,.form-grid-2{ grid-template-columns:1fr; } }
+.input-icon-wrap { position: relative; }
+.input-icon-wrap .icon {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  font-size: 0.9rem; pointer-events: none;
+}
+.input-icon-wrap input { padding-left: 32px; }
+.badge-tipo {
+  display: inline-block; padding: 3px 10px; border-radius: 20px;
+  font-size: 0.75rem; font-weight: 600; background: var(--rojo-suave);
+  color: var(--rojo); border: 1px solid var(--rojo-borde);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="seccion-header">
+  <div>
+    <h1 class="seccion-titulo">{% if client %}✏️ Editar Cliente{% else %}👤 Nuevo Cliente{% endif %}</h1>
+    <p class="seccion-subtitulo">{% if client %}Actualice la información del cliente{% else %}Complete los datos para registrar un nuevo cliente{% endif %}</p>
+  </div>
+  <a href="{{ url_for('clients.client_list') }}" class="btn btn-outline">← Volver</a>
+</div>
+
+<div class="tarjeta" style="max-width:820px;">
+  <div class="tarjeta-cab">
+    <span class="tarjeta-titulo">📋 Información del Cliente</span>
+  </div>
+  <div class="tarjeta-cuerpo">
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+      <!-- Datos principales -->
+      <div class="form-section">
+        <div class="form-section-title">🪪 Identificación</div>
+        <div class="form-grid-2">
+          <div class="form-grupo" style="grid-column:1/-1">
+            <label>Nombre completo / Razón Social *</label>
+            <input type="text" name="name" value="{{ client.name if client else '' }}" required
+                   placeholder="Ej: Carlos Alberto Gómez">
+          </div>
+          <div class="form-grupo">
+            <label>Cédula / NIT</label>
+            <div class="input-icon-wrap">
+              <span class="icon">🪪</span>
+              <input type="text" name="cedula" value="{{ client.cedula|default('', true) }}"
+                     placeholder="Ej: 1234567890">
+            </div>
+          </div>
+          <div class="form-grupo">
+            <label>Tipo de Cliente</label>
+            <select name="client_type">
+              {% for val, label in client_types %}
+              <option value="{{ val }}" {% if client.client_type == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contacto -->
+      <div class="form-section">
+        <div class="form-section-title">📞 Contacto</div>
+        <div class="form-grid-3">
+          <div class="form-grupo">
+            <label>Teléfono / Celular</label>
+            <div class="input-icon-wrap">
+              <span class="icon">📱</span>
+              <input type="text" name="phone" value="{{ client.phone|default('', true) }}"
+                     placeholder="+57 300 000 0000">
+            </div>
+          </div>
+          <div class="form-grupo">
+            <label>Correo Electrónico</label>
+            <div class="input-icon-wrap">
+              <span class="icon">✉️</span>
+              <input type="email" name="email" value="{{ client.email|default('', true) }}"
+                     placeholder="cliente@correo.com">
+            </div>
+          </div>
+          <div class="form-grupo">
+            <label>Municipio / Ciudad</label>
+            <div class="input-icon-wrap">
+              <span class="icon">📍</span>
+              <input type="text" name="municipio" value="{{ client.municipio|default('', true) }}"
+                     placeholder="Ej: Medellín">
+            </div>
+          </div>
+          <div class="form-grupo" style="grid-column:1/-1">
+            <label>Dirección</label>
+            <textarea name="address" rows="2" placeholder="Calle, carrera, barrio...">{{ client.address|default('', true) }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comercial -->
+      <div class="form-section">
+        <div class="form-section-title">💰 Condiciones Comerciales</div>
+        <div class="form-grid-2">
+          <div class="form-grupo">
+            <label>Descuento Base (%)</label>
+            <div class="input-icon-wrap">
+              <span class="icon">%</span>
+              <input type="number" name="discount_percent"
+                     value="{{ client.discount_percent|default(0, true) }}"
+                     min="0" max="100" step="0.5" style="padding-left:32px;">
+            </div>
+            <span class="form-pista">Este descuento se aplica automáticamente en ventas</span>
+          </div>
+          <div class="form-grupo">
+            <label>Observaciones</label>
+            <textarea name="notes" rows="3" placeholder="Condiciones especiales, notas internas...">{{ client.notes|default('', true) }}</textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-acciones">
+        <a href="{{ url_for('clients.client_list') }}" class="btn btn-outline">Cancelar</a>
+        <button type="submit" class="btn btn-rojo">
+          {% if client %}💾 Guardar Cambios{% else %}✅ Registrar Cliente{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

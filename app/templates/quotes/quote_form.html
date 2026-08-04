@@ -72,7 +72,7 @@
             <option value="">— Seleccionar producto —</option>
             {% for p in products %}
             <option value="{{ p.pk }}" data-precio="{{ p.sale_price }}" data-nombre="{{ p.name }}">
-              {{ p.name }}{% if p.talla %} ({{ p.talla }}){% endif %} — {{ p.sale_price|pesos }}
+              {{ p.name }}{% set tallas = p.get_tallas_lista() %}{% if tallas %} ({{ tallas|join(', ') }}){% endif %} — {{ p.sale_price|pesos }}
             </option>
             {% endfor %}
           </select>

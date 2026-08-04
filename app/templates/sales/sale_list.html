@@ -33,7 +33,7 @@
         {% for v in sales %}
         <tr>
           <td><a href="{{ url_for('sales.sale_detail', pk=v.pk) }}" class="bold txt-rojo">#{{ v.pk }}</a></td>
-          <td class="bold">{{ v.client.name if v.client else "Mostrador" }}</td>
+          <td class="bold">{{ v.display_client }}</td>
           <td class="td-muted">{{ v.items|length }} art.</td>
           <td class="td-muted">{% if v.discount_applied %}<span class="badge badge-verde">{{ v.discount_applied }}%</span>{% else %}—{% endif %}</td>
           <td class="bold">{{ v.total_amount|pesos }}</td>

@@ -103,12 +103,15 @@
           <!-- Marca -->
           <td class="td-muted">{{ p.marca|default("—", true) }}</td>
 
-          <!-- Talla -->
+          <!-- Tallas -->
           <td>
-            {% if p.talla %}
-              <span class="badge badge-negro" style="font-size:0.75rem;padding:4px 10px;letter-spacing:0.5px;">
-                {{ p.talla }}
+            {% set tallas = p.get_tallas_lista() %}
+            {% if tallas %}
+              {% for t in tallas %}
+              <span class="badge badge-negro" style="font-size:0.7rem;padding:3px 8px;letter-spacing:0.5px;margin:1px;">
+                {{ t }}
               </span>
+              {% endfor %}
             {% else %}
               <span class="td-muted">—</span>
             {% endif %}

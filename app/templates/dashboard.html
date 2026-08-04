@@ -137,7 +137,7 @@
           {% for v in recent_sales %}
           <tr>
             <td><a href="{{ url_for('sales.sale_detail', pk=v.pk) }}" class="bold txt-rojo">#{{ v.pk }}</a></td>
-            <td>{{ v.client.name if v.client else "Mostrador" }}</td>
+            <td>{{ v.display_client }}</td>
             <td class="bold">{{ v.total_amount|pesos }}</td>
             <td class="td-muted">{{ v.created_at|django_date("d/m/Y") }}</td>
             <td>

@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app import create_app
 from app.extensions import db
-from app.models import (User, Category, Product, ProductColorStock, Client,
+from app.models import (User, Category, Product, ProductStock, Client,
                          Sale, SaleItem, Order, OrderItem, PriceList,
                          PriceListItem, Quote, QuoteItem)
 
@@ -54,14 +54,15 @@ TABLE_PLAN = [
         'discount_percent': 'discount_percent', 'notes': 'notes', 'created_at': 'created_at',
     }),
     ('inventory_product', Product, {
+        # 'talla'/'color' del Django original ya no se cargan al producto:
+        # se usan solo para decidir la talla por defecto en ProductStock (ver abajo).
         'id': 'id', 'codigo': 'codigo', 'name': 'name', 'category_id': 'category_id',
-        'marca': 'marca', 'talla': 'talla', 'color': 'color', 'description': 'description',
+        'marca': 'marca', 'description': 'description',
         'cost_price': 'cost_price', 'sale_price': 'sale_price', 'stock_quantity': 'stock_quantity',
         'min_stock': 'min_stock', 'created_at': 'created_at',
     }),
-    ('inventory_productcolorstock', ProductColorStock, {
-        'id': 'id', 'product_id': 'product_id', 'color': 'color', 'stock': 'stock',
-    }),
+    # inventory_productcolorstock se migra aparte (ver migrate_product_stock),
+    # porque el esquema nuevo agrega una dimensión (talla) que no existía en Django.
     ('sales_sale', Sale, {
         'id': 'id', 'client_id': 'client_id', 'status': 'status', 'notes': 'notes',
         'total_amount': 'total_amount', 'discount_applied': 'discount_applied', 'created_at': 'created_at',
@@ -114,6 +115,58 @@ def _parse_datetime(value):
     return None
 
 
+def migrate_product_stock(sqlite_con):
+    """Migra inventory_productcolorstock (esquema Django, sin talla) hacia
+    ProductStock (esquema nuevo, con talla). Usa la talla que tenía cada
+    producto en Django (o 'Única' si no tenía) como talla por defecto.
+    Los productos que no tenían desglose por color en absoluto se migran
+    como una sola fila con su stock_quantity total, para no perder unidades.
+    """
+    cur = sqlite_con.cursor()
+
+    try:
+        cur.execute('SELECT id, talla, stock_quantity FROM inventory_product')
+        productos = {row[0]: {'talla': row[1] or '', 'stock_quantity': row[2] or 0} for row in cur.fetchall()}
+    except sqlite3.OperationalError as e:
+        print(f'  ⚠️  Saltando migración de stock por talla/color: {e}')
+        return 0
+
+    count = 0
+    productos_con_color = set()
+
+    try:
+        cur.execute('SELECT id, product_id, color, stock FROM inventory_productcolorstock')
+        rows = cur.fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+
+    for old_id, product_id, color, stock in rows:
+        info = productos.get(product_id, {})
+        talla = info.get('talla') or 'Única'
+        productos_con_color.add(product_id)
+
+        existing = ProductStock.query.filter_by(product_id=product_id, talla=talla, color=color).first()
+        if existing is None:
+            existing = ProductStock(product_id=product_id, talla=talla, color=color)
+            db.session.add(existing)
+        existing.stock = stock
+        count += 1
+
+    # Productos sin ninguna fila de color: se crea una fila con su stock total.
+    for product_id, info in productos.items():
+        if product_id in productos_con_color or info['stock_quantity'] <= 0:
+            continue
+        talla = info.get('talla') or 'Única'
+        existing = ProductStock.query.filter_by(product_id=product_id, talla=talla, color='').first()
+        if existing is None:
+            existing = ProductStock(product_id=product_id, talla=talla, color='', stock=info['stock_quantity'])
+            db.session.add(existing)
+            count += 1
+
+    db.session.commit()
+    return count
+
+
 def migrate_table(sqlite_con, sqlite_table, model, column_map):
     from sqlalchemy import DateTime
 
@@ -156,7 +209,7 @@ def reset_postgres_sequences(engine):
     if engine.dialect.name != 'postgresql':
         return
 
-    tables = [m.__table__.name for _, m, _ in TABLE_PLAN]
+    tables = [m.__table__.name for _, m, _ in TABLE_PLAN] + ['inventory_productstock']
     with engine.begin() as conn:
         for table in tables:
             conn.execute(text(f"""
@@ -193,6 +246,11 @@ def main():
             count = migrate_table(sqlite_con, table_name, model, column_map)
             total += count
             print(f'  ✅ {table_name:32s} → {count:5d} filas migradas a {model.__tablename__}')
+
+            if table_name == 'inventory_product':
+                stock_count = migrate_product_stock(sqlite_con)
+                total += stock_count
+                print(f'  ✅ {"inventory_productcolorstock":32s} → {stock_count:5d} filas migradas a inventory_productstock (talla+color)')
 
         reset_postgres_sequences(db.engine)
         sqlite_con.close()

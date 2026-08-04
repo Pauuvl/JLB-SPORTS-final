@@ -35,7 +35,7 @@
       <table>
         <thead><tr><th>Descripción</th><th>Precio Unit.</th><th>Cantidad</th><th style="text-align:right">Subtotal</th></tr></thead>
         <tbody>
-          {% for item in quote.items.all %}
+          {% for item in quote.items %}
           <tr>
             <td><div class="bold">{{ item.description }}</div></td>
             <td>{{ item.unit_price|pesos }}</td>

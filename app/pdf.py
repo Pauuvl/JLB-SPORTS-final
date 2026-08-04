@@ -88,12 +88,12 @@ def generate_sale_pdf(sale):
         ]
         cli_rows = [r for r in cli_rows if r[1].text != '—' or r[0].text == 'CLIENTE']
     else:
-        cli_rows = [info_block('Cliente', 'Venta Mostrador')]
+        cli_rows = [info_block('Cliente', sale.client_name or 'Venta Mostrador')]
 
     venta_rows = [
         info_block('Fecha', sale.created_at.strftime('%d/%m/%Y')),
         info_block('Hora', sale.created_at.strftime('%H:%M')),
-        info_block('Vendedor', '—'),
+        info_block('Vendedor', sale.vendedor or '—'),
     ]
 
     cli_flat = list(cli_rows)
@@ -119,7 +119,7 @@ def generate_sale_pdf(sale):
     elements.append(info_tbl)
     elements.append(Spacer(1, 0.45 * cm))
 
-    col_headers = ['#', 'Código', 'Producto', 'Color', 'Cant.', 'Precio Unit.', 'Subtotal']
+    col_headers = ['#', 'Código', 'Producto', 'Talla', 'Color', 'Cant.', 'Precio Unit.', 'Subtotal']
     rows = [col_headers]
     subtotal_sum = Decimal('0')
 
@@ -129,13 +129,14 @@ def generate_sale_pdf(sale):
             str(i),
             item.product.codigo or '—',
             item.product.name,
+            item.talla_vendida or '—',
             item.color_vendido or '—',
             str(item.quantity),
             f'${int(item.unit_price):,}'.replace(',', '.'),
             f'${int(item.subtotal):,}'.replace(',', '.'),
         ])
 
-    col_w = [0.7 * cm, 2.2 * cm, 5.8 * cm, 2.3 * cm, 1.3 * cm, 2.6 * cm, 2.5 * cm]
+    col_w = [0.6 * cm, 1.9 * cm, 4.9 * cm, 1.4 * cm, 2 * cm, 1.2 * cm, 2.5 * cm, 2.4 * cm]
     prod_tbl = Table(rows, colWidths=col_w, repeatRows=1)
     prod_tbl.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), NEGRO),

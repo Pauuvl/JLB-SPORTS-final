@@ -12,17 +12,21 @@
   border-bottom: 2px solid var(--gris-borde);
   display: flex; align-items: center; gap: 8px;
 }
-.color-stock-row {
-  display: grid; grid-template-columns: 1fr 120px auto;
+.stock-row {
+  display: grid; grid-template-columns: 1fr 1fr 120px auto;
   gap: 10px; align-items: end; margin-bottom: 10px;
 }
-.color-stock-row input { margin: 0; }
+.stock-row input { margin: 0; }
 .btn-quitar-color {
   background: none; border: 1px solid var(--gris-borde); border-radius: 6px;
   padding: 8px 10px; cursor: pointer; color: var(--gris-texto);
   transition: all 0.2s; height: 38px;
 }
 .btn-quitar-color:hover { background: var(--rojo-suave); color: var(--rojo); border-color: var(--rojo-borde); }
+#stock-total-preview {
+  background: var(--gris-fondo); border: 1px solid var(--gris-borde); border-radius: var(--radio-sm);
+  padding: 12px 18px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center;
+}
 </style>
 {% endblock %}
 
@@ -35,7 +39,7 @@
   <a href="{{ url_for('inventory.product_list') }}" class="btn btn-outline">← Volver al Inventario</a>
 </div>
 
-<div class="tarjeta" style="max-width:880px;">
+<div class="tarjeta" style="max-width:920px;">
   <div class="tarjeta-cab">
     <span class="tarjeta-titulo">📋 Información del Producto</span>
     {% if product %}
@@ -72,15 +76,6 @@
           <div class="form-grupo">
             <label>Marca</label>
             <input type="text" name="marca" value="{{ product.marca|default('', true) }}" placeholder="Ej: Nike, Adidas, Puma...">
-          </div>
-          <div class="form-grupo">
-            <label>Talla</label>
-            <input type="text" name="talla" value="{{ product.talla|default('', true) }}" placeholder="Ej: 42, M, XL, Única...">
-          </div>
-          <div class="form-grupo full">
-            <label>Color(es) disponibles</label>
-            <input type="text" id="id_color" name="color" value="{{ product.color|default('', true) }}" placeholder="Ej: Rojo, Azul, Negro">
-            <span class="form-pista">Separe con comas. Se usarán para configurar el stock por color abajo.</span>
           </div>
           <div class="form-grupo full">
             <label>Descripción</label>
@@ -130,51 +125,57 @@
         </div>
       </div>
 
-      <!-- 3. Inventario -->
+      <!-- 3. Tallas, colores y stock -->
       <div class="seccion-form">
-        <div class="seccion-form-titulo">📦 3 · Control de Inventario</div>
-        <div class="form-grid">
-          <div class="form-grupo">
-            <label>Existencias Totales *</label>
-            <input type="number" name="stock_quantity" value="{{ product.stock_quantity|default(0, true) }}" min="0" required>
-            <span class="form-pista">Stock general. Si usa stock por color, mantenga este valor como el total.</span>
-          </div>
-          <div class="form-grupo">
-            <label>Stock Mínimo (Alerta)</label>
-            <input type="number" name="min_stock" value="{{ product.min_stock|default(5, true) }}" min="0">
-            <span class="form-pista">Alerta ⚠️ cuando llegue a este valor</span>
-          </div>
+        <div class="seccion-form-titulo">📦 3 · Tallas, Colores y Stock</div>
+        <div class="form-pista" style="margin-bottom:10px;">
+          Un mismo producto puede tener varias tallas, y cada talla sus propios colores con
+          stock independiente. Agrega una fila por cada combinación talla + color.
         </div>
-      </div>
 
-      <!-- 4. Stock por color -->
-      <div class="seccion-form">
-        <div class="seccion-form-titulo">🎨 4 · Stock por Color (opcional)</div>
-        <div id="color-stocks-container">
-          {% if color_stocks %}
-            {% for cs in color_stocks %}
-            <div class="color-stock-row">
+        <div style="display:grid;grid-template-columns:1fr 1fr 120px auto;gap:10px;margin-bottom:6px;">
+          <span class="form-pista" style="margin:0;">Talla</span>
+          <span class="form-pista" style="margin:0;">Color</span>
+          <span class="form-pista" style="margin:0;">Stock</span>
+          <span></span>
+        </div>
+
+        <div id="stock-rows-container">
+          {% if stock_rows %}
+            {% for row in stock_rows %}
+            <div class="stock-row">
               <div class="form-grupo" style="margin:0;">
-                <label>Color</label>
-                <input type="text" name="color_nombre[]" value="{{ cs.color }}" placeholder="Ej: Rojo">
+                <input type="text" name="stock_talla[]" value="{{ row.talla }}" placeholder="Ej: M, 38, Única" required>
               </div>
               <div class="form-grupo" style="margin:0;">
-                <label>Stock</label>
-                <input type="number" name="color_stock[]" value="{{ cs.stock }}" min="0">
+                <input type="text" name="stock_color[]" value="{{ row.color }}" placeholder="Ej: Rojo (opcional)">
+              </div>
+              <div class="form-grupo" style="margin:0;">
+                <input type="number" name="stock_cantidad[]" value="{{ row.stock }}" min="0" oninput="calcularStockTotal()">
               </div>
               <div>
-                <label style="visibility:hidden;display:block;font-size:0.75rem;margin-bottom:6px;">-</label>
-                <button type="button" class="btn-quitar-color" onclick="this.closest('.color-stock-row').remove()">✕</button>
+                <button type="button" class="btn-quitar-color" onclick="this.closest('.stock-row').remove(); calcularStockTotal();">✕</button>
               </div>
             </div>
             {% endfor %}
           {% endif %}
         </div>
-        <button type="button" class="btn btn-outline btn-sm" onclick="agregarColorStock()" style="margin-top:8px;">
-          + Agregar color
+
+        <button type="button" class="btn btn-outline btn-sm" onclick="agregarStockRow()" style="margin-top:4px;">
+          + Agregar talla / color
         </button>
-        <div class="form-pista" style="margin-top:8px;">
-          Al vender, el sistema descontará del stock del color seleccionado. Si no hay stock por color definido, solo se descuenta el stock general.
+
+        <div id="stock-total-preview">
+          <span style="font-size:0.8rem;color:var(--gris-texto);font-weight:600;">Stock total (suma de todas las filas)</span>
+          <span id="stock-total-valor" style="font-family:'Barlow Condensed',sans-serif;font-size:1.4rem;font-weight:700;">0</span>
+        </div>
+
+        <div class="form-grid" style="margin-top:16px;">
+          <div class="form-grupo">
+            <label>Stock Mínimo (Alerta)</label>
+            <input type="number" name="min_stock" value="{{ product.min_stock|default(5, true) }}" min="0">
+            <span class="form-pista">Alerta ⚠️ cuando el stock total llegue a este valor</span>
+          </div>
         </div>
       </div>
 
@@ -211,29 +212,43 @@ function calcularMargen() {
   document.getElementById('prev-margen').style.color      = colorM;
 }
 
-function agregarColorStock() {
-  const container = document.getElementById('color-stocks-container');
+function agregarStockRow() {
+  const container = document.getElementById('stock-rows-container');
   const div = document.createElement('div');
-  div.className = 'color-stock-row';
+  div.className = 'stock-row';
   div.innerHTML = `
     <div class="form-grupo" style="margin:0;">
-      <label>Color</label>
-      <input type="text" name="color_nombre[]" placeholder="Ej: Negro">
+      <input type="text" name="stock_talla[]" placeholder="Ej: M, 38, Única" required>
     </div>
     <div class="form-grupo" style="margin:0;">
-      <label>Stock</label>
-      <input type="number" name="color_stock[]" value="0" min="0">
+      <input type="text" name="stock_color[]" placeholder="Ej: Rojo (opcional)">
+    </div>
+    <div class="form-grupo" style="margin:0;">
+      <input type="number" name="stock_cantidad[]" value="0" min="0" oninput="calcularStockTotal()">
     </div>
     <div>
-      <label style="visibility:hidden;display:block;font-size:0.75rem;margin-bottom:6px;">-</label>
-      <button type="button" class="btn-quitar-color" onclick="this.closest('.color-stock-row').remove()">✕</button>
+      <button type="button" class="btn-quitar-color" onclick="this.closest('.stock-row').remove(); calcularStockTotal();">✕</button>
     </div>
   `;
   container.appendChild(div);
-  div.querySelector('input[name="color_nombre[]"]').focus();
+  div.querySelector('input[name="stock_talla[]"]').focus();
 }
 
-// Calcular al cargar la página (muestra los valores actuales del producto)
+function calcularStockTotal() {
+  const inputs = document.querySelectorAll('input[name="stock_cantidad[]"]');
+  let total = 0;
+  inputs.forEach((i) => { total += parseInt(i.value) || 0; });
+  document.getElementById('stock-total-valor').textContent = total;
+}
+
+// Si es un producto nuevo, arranca con una fila vacía para no partir en blanco
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('stock-rows-container').children.length === 0) {
+    agregarStockRow();
+  }
+  calcularStockTotal();
+});
+
 calcularMargen();
 </script>
 {% endblock %}

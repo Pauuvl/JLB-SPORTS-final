@@ -106,8 +106,11 @@ class Product(db.Model, PkMixin):
     name = db.Column(db.String(200), nullable=False)
     category_id = db.Column(db.Integer, db.ForeignKey('inventory_category.id', ondelete='SET NULL'), nullable=True)
     marca = db.Column(db.String(100), default='')
+    # 'talla' y 'color' (texto plano) se conservan por compatibilidad con
+    # datos antiguos, pero ya no se usan para capturar inventario: ahora
+    # el detalle real vive en ProductStock (una fila por talla+color).
     talla = db.Column(db.String(20), default='')
-    color = db.Column(db.String(100), default='')  # colores separados por coma
+    color = db.Column(db.String(100), default='')
     description = db.Column(db.Text, default='')
     cost_price = db.Column(db.Numeric(10, 2), nullable=False)
     sale_price = db.Column(db.Numeric(10, 2), nullable=False)
@@ -116,24 +119,32 @@ class Product(db.Model, PkMixin):
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     category = db.relationship('Category', back_populates='products')
-    color_stocks = db.relationship(
-        'ProductColorStock', back_populates='product',
-        cascade='all, delete-orphan', order_by='ProductColorStock.color'
+    stocks = db.relationship(
+        'ProductStock', back_populates='product',
+        cascade='all, delete-orphan', order_by='ProductStock.talla, ProductStock.color'
     )
 
     def __str__(self):
-        parts = [self.name]
-        if self.talla:
-            parts.append(f'T:{self.talla}')
-        if self.color:
-            parts.append(f'C:{self.color}')
-        return ' | '.join(parts)
+        return self.name
 
-    def get_colores_lista(self):
-        """Retorna lista de colores disponibles."""
-        if self.color:
-            return [c.strip() for c in self.color.split(',') if c.strip()]
-        return []
+    def get_tallas_lista(self):
+        """Tallas distintas registradas para este producto, en orden de creación."""
+        seen = []
+        for s in self.stocks:
+            if s.talla not in seen:
+                seen.append(s.talla)
+        return seen
+
+    def get_colores_por_talla(self):
+        """Agrupa el stock por talla: {'M': [{'color': 'Rojo', 'stock': 5}, ...], ...}"""
+        grouped = {}
+        for s in self.stocks:
+            grouped.setdefault(s.talla, []).append({'color': s.color, 'stock': s.stock})
+        return grouped
+
+    def recalculate_stock_quantity(self):
+        """Recalcula el total agregado a partir del detalle por talla/color."""
+        self.stock_quantity = sum(s.stock for s in self.stocks)
 
     @property
     def stock_value(self):
@@ -150,20 +161,26 @@ class Product(db.Model, PkMixin):
         return 0
 
 
-class ProductColorStock(db.Model, PkMixin):
-    """Stock individual por color de un producto."""
-    __tablename__ = 'inventory_productcolorstock'
-    __table_args__ = (db.UniqueConstraint('product_id', 'color', name='uq_product_color'),)
+class ProductStock(db.Model, PkMixin):
+    """Stock individual por combinación talla + color de un producto."""
+    __tablename__ = 'inventory_productstock'
+    __table_args__ = (db.UniqueConstraint('product_id', 'talla', 'color', name='uq_product_talla_color'),)
 
     id = db.Column(db.Integer, primary_key=True)
     product_id = db.Column(db.Integer, db.ForeignKey('inventory_product.id', ondelete='CASCADE'), nullable=False)
-    color = db.Column(db.String(100), nullable=False)
+    talla = db.Column(db.String(20), nullable=False, default='')
+    color = db.Column(db.String(100), nullable=False, default='')
     stock = db.Column(db.Integer, default=0)
 
-    product = db.relationship('Product', back_populates='color_stocks')
+    product = db.relationship('Product', back_populates='stocks')
 
     def __str__(self):
-        return f'{self.product.name} — {self.color}: {self.stock}'
+        return f'{self.product.name} — Talla {self.talla} / {self.color}: {self.stock}'
+
+
+# Alias de compatibilidad por si algún código o migración antigua todavía
+# referencia el nombre anterior.
+ProductColorStock = ProductStock
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -221,6 +238,8 @@ class Sale(db.Model, PkMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     client_id = db.Column(db.Integer, db.ForeignKey('clients_client.id', ondelete='SET NULL'), nullable=True)
+    client_name = db.Column(db.String(200), default='')  # nombre libre si el cliente no está registrado
+    vendedor = db.Column(db.String(150), default='')
     status = db.Column(db.String(20), default='completed')
     notes = db.Column(db.Text, default='')
     total_amount = db.Column(db.Numeric(12, 2), default=0)
@@ -231,11 +250,16 @@ class Sale(db.Model, PkMixin):
     items = db.relationship('SaleItem', back_populates='sale', cascade='all, delete-orphan')
 
     def __str__(self):
-        client_name = self.client.name if self.client else 'Mostrador'
-        return f'Venta #{self.pk} - {client_name} - ${self.total_amount}'
+        return f'Venta #{self.pk} - {self.display_client} - ${self.total_amount}'
 
     def get_status_display(self):
         return SALE_STATUS_LABELS.get(self.status, self.status)
+
+    @property
+    def display_client(self):
+        if self.client:
+            return self.client.name
+        return self.client_name or 'Mostrador'
 
     def calculate_total(self):
         subtotal = sum((item.subtotal for item in self.items), Decimal('0'))
@@ -255,6 +279,7 @@ class SaleItem(db.Model, PkMixin):
     product_id = db.Column(db.Integer, db.ForeignKey('inventory_product.id'), nullable=False)
     quantity = db.Column(db.Integer, nullable=False)
     unit_price = db.Column(db.Numeric(10, 2), nullable=False)
+    talla_vendida = db.Column(db.String(20), default='')
     color_vendido = db.Column(db.String(100), default='')
 
     sale = db.relationship('Sale', back_populates='items')

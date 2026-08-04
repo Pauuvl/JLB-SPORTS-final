@@ -31,29 +31,27 @@
 .item-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; align-items: end; }
 .item-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .item-num { background: var(--rojo); color: white; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 800; flex-shrink: 0; }
-.color-selector-wrap {
+.talla-color-wrap {
   margin-top: 10px;
   display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   background: linear-gradient(135deg, #fff7ed, #fff);
   border: 2px dashed #f97316;
   border-radius: var(--radio-sm);
   padding: 10px 14px;
 }
-.color-selector-wrap label {
+.talla-color-wrap label {
   color: #ea580c;
   font-weight: 700;
   font-size: 0.8rem;
-  display: flex;
-  align-items: center;
-  gap: 5px;
 }
-.color-selector-wrap label::before { content: "🎨"; }
-.color-selector-wrap select {
+.talla-color-wrap select {
   border-color: #f97316;
   background: white;
   font-weight: 600;
 }
-.color-selector-wrap select:focus { border-color: #ea580c; box-shadow: 0 0 0 3px rgba(249,115,22,0.15); }
+.talla-color-wrap select:focus { border-color: #ea580c; box-shadow: 0 0 0 3px rgba(249,115,22,0.15); }
 .color-stock-info { font-size: 0.75rem; color: var(--gris-texto); margin-top: 4px; }
 .stock-badge {
   display: inline-flex; align-items: center; gap: 4px;
@@ -88,13 +86,13 @@
 
       <!-- CLIENTE -->
       <div class="tarjeta mb-2">
-        <div class="tarjeta-cab"><span class="tarjeta-titulo">👤 Cliente</span></div>
+        <div class="tarjeta-cab"><span class="tarjeta-titulo">👤 Cliente y Venta</span></div>
         <div class="tarjeta-cuerpo">
           <div class="form-grid">
             <div class="form-grupo">
-              <label>Cliente (opcional)</label>
+              <label>Cliente registrado (opcional)</label>
               <select name="client" id="select-cliente" onchange="alCambiarCliente()">
-                <option value="" data-descuento="0">— Mostrador (sin descuento) —</option>
+                <option value="" data-descuento="0">— Sin cliente registrado —</option>
                 {% for c in clients %}
                 <option value="{{ c.pk }}" data-descuento="{{ c.discount_percent }}">
                   {{ c.name }}{% if c.cedula %} · {{ c.cedula }}{% endif %} — {{ c.get_client_type_display() }}
@@ -102,6 +100,14 @@
                 </option>
                 {% endfor %}
               </select>
+            </div>
+            <div class="form-grupo" id="wrap-client-name">
+              <label>Nombre del cliente (si no está registrado)</label>
+              <input type="text" name="client_name" id="input-client-name" placeholder="Ej: Mostrador, o el nombre de quien compra">
+            </div>
+            <div class="form-grupo">
+              <label>Vendedor</label>
+              <input type="text" name="vendedor" placeholder="¿Quién atendió esta venta?">
             </div>
             <div class="form-grupo">
               <label>Observaciones</label>
@@ -184,12 +190,8 @@
    ================================================================ */
 window.PRODUCTOS = {{ products_json|safe }};
 
-// Índice propio para este formulario (independiente de main.js)
 let _ventaItemIndex = 0;
 
-// ------------------------------------------------------------------
-// Utilidades
-// ------------------------------------------------------------------
 function formatoPesos(v) {
   return '$' + Math.round(v).toLocaleString('es-CO').replace(/,/g, '.');
 }
@@ -208,6 +210,17 @@ function alCambiarCliente() {
   document.getElementById('input-descuento').value = descuento;
   document.getElementById('desc-hint').textContent =
     descuento > 0 ? 'Descuento del cliente aplicado' : '';
+
+  // Si se elige un cliente registrado, el nombre libre no aplica.
+  const nameWrap = document.getElementById('wrap-client-name');
+  const nameInput = document.getElementById('input-client-name');
+  if (sel.value) {
+    nameInput.disabled = true;
+    nameInput.placeholder = 'No aplica: ya seleccionaste un cliente registrado';
+  } else {
+    nameInput.disabled = false;
+    nameInput.placeholder = 'Ej: Mostrador, o el nombre de quien compra';
+  }
   recalcularTodo();
 }
 
@@ -225,18 +238,15 @@ function agregarItem() {
 
   const idx = _ventaItemIndex++;
 
-  // Construir opciones — usamos atributos data con JSON codificado en base64
-  // para evitar conflictos de comillas en el HTML
   const opts = window.PRODUCTOS.map(p => {
     const stockLabel = p.stock === 0 ? ' ⚠️ AGOTADO' : ` (Stock: ${p.stock})`;
-    // Codificar listas como JSON en atributos data (comillas dobles escapadas)
-    const coloresJSON   = JSON.stringify(p.colores       || []);
-    const colorStocksJSON = JSON.stringify(p.color_stocks || []);
+    const tallasJSON = JSON.stringify(p.tallas || []);
+    const detalleJSON = JSON.stringify(p.detalle_stock || []);
     return `<option value="${p.id}"
       data-precio="${p.precio}"
       data-stock="${p.stock}"
-      data-colores="${coloresJSON.replace(/"/g, '&quot;')}"
-      data-colorstocks="${colorStocksJSON.replace(/"/g, '&quot;')}"
+      data-tallas="${tallasJSON.replace(/"/g, '&quot;')}"
+      data-detalle="${detalleJSON.replace(/"/g, '&quot;')}"
     >${p.nombre}${stockLabel}</option>`;
   }).join('');
 
@@ -280,13 +290,20 @@ function agregarItem() {
       </div>
     </div>
 
-    <!-- Selector de color — visible solo si el producto tiene colores -->
-    <div class="color-selector-wrap" id="color-wrap-${idx}">
+    <!-- Selector de talla + color — obligatorio para descontar el stock correcto -->
+    <div class="talla-color-wrap" id="talla-color-wrap-${idx}">
       <div class="form-grupo" style="margin:0;">
-        <label>Color</label>
+        <label>🧵 Talla *</label>
+        <select name="talla_vendida[]" id="talla-sel-${idx}"
+                onchange="alCambiarTalla(${idx})" required>
+          <option value="">— Seleccionar talla —</option>
+        </select>
+      </div>
+      <div class="form-grupo" style="margin:0;">
+        <label>🎨 Color</label>
         <select name="color_vendido[]" id="color-sel-${idx}"
                 onchange="validarColorStock(${idx}); recalcularTodo();">
-          <option value="">— Sin color específico —</option>
+          <option value="">— Seleccione talla primero —</option>
         </select>
         <div class="color-stock-info" id="color-stock-info-${idx}"></div>
       </div>
@@ -303,7 +320,7 @@ function eliminarItem(idx) {
 }
 
 // ------------------------------------------------------------------
-// Cambio de producto → actualizar precio, stock badge y selector color
+// Cambio de producto → precio, stock badge y selector de talla
 // ------------------------------------------------------------------
 function alCambiarProducto(idx) {
   const sel = document.getElementById(`prod-sel-${idx}`);
@@ -313,57 +330,88 @@ function alCambiarProducto(idx) {
   const precio = parseFloat(opt.dataset.precio) || 0;
   const stock  = parseInt(opt.dataset.stock)    || 0;
 
-  // Leer listas desde los atributos data (decodificando &quot; → ")
-  let colores    = [];
-  let colorStocks = [];
-  try {
-    colores     = JSON.parse(opt.getAttribute('data-colores')     || '[]');
-    colorStocks = JSON.parse(opt.getAttribute('data-colorstocks') || '[]');
-  } catch(e) {
-    console.warn('Error parseando colores:', e);
-  }
+  let tallas = [];
+  try { tallas = JSON.parse(opt.getAttribute('data-tallas') || '[]'); }
+  catch(e) { console.warn('Error parseando tallas:', e); }
 
-  // Nombre del producto (sin el stock label)
   document.getElementById(`item-name-${idx}`).textContent =
     opt.text.replace(/\s*⚠️ AGOTADO|\s*\(Stock:.*?\)/, '').trim();
 
-  // Precio
   document.getElementById(`precio-${idx}`).value = formatoPesos(precio);
 
-  // Badge de stock general
   let badgeClass = 'stock-ok', badgeText = `Stock: ${stock}`;
   if (stock === 0)      { badgeClass = 'stock-agotado'; badgeText = 'Agotado'; }
   else if (stock <= 5)  { badgeClass = 'stock-bajo';    badgeText = `Stock bajo: ${stock}`; }
   document.getElementById(`stock-info-${idx}`).innerHTML =
     `<span class="stock-badge ${badgeClass}">${badgeText}</span>`;
 
-  // Selector de color
-  const colorWrap = document.getElementById(`color-wrap-${idx}`);
-  const colorSel  = document.getElementById(`color-sel-${idx}`);
+  const tallaColorWrap = document.getElementById(`talla-color-wrap-${idx}`);
+  const tallaSel = document.getElementById(`talla-sel-${idx}`);
 
-  if (colores.length > 0) {
-    // Poblar opciones con stock por color
-    colorSel.innerHTML = '<option value="">— Sin color específico —</option>';
-    colores.forEach(c => {
-      const cs = colorStocks.find(x => x.color === c);
-      const stockInfo  = cs ? ` (Stock: ${cs.stock})` : '';
-      const stockAttr  = cs ? cs.stock : '';
-      colorSel.innerHTML +=
-        `<option value="${c}" data-color-stock="${stockAttr}">${c}${stockInfo}</option>`;
-    });
-    colorWrap.style.display = 'block';
+  tallaSel.innerHTML = '<option value="">— Seleccionar talla —</option>';
+  tallas.forEach(t => { tallaSel.innerHTML += `<option value="${t}">${t}</option>`; });
+
+  if (tallas.length > 0) {
+    tallaColorWrap.style.display = 'grid';
   } else {
-    colorWrap.style.display = 'none';
-    colorSel.value = '';
-    document.getElementById(`color-stock-info-${idx}`).innerHTML = '';
+    tallaColorWrap.style.display = 'none';
   }
+
+  const colorSel = document.getElementById(`color-sel-${idx}`);
+  colorSel.innerHTML = '<option value="">— Seleccione talla primero —</option>';
+  document.getElementById(`color-stock-info-${idx}`).innerHTML = '';
 
   validarStock(idx);
   recalcularTodo();
 }
 
 // ------------------------------------------------------------------
-// Validar stock general
+// Cambio de talla → poblar colores disponibles para esa talla
+// ------------------------------------------------------------------
+function alCambiarTalla(idx) {
+  const prodSel = document.getElementById(`prod-sel-${idx}`);
+  const opt = prodSel?.selectedOptions[0];
+  const tallaSel = document.getElementById(`talla-sel-${idx}`);
+  const colorSel = document.getElementById(`color-sel-${idx}`);
+  const talla = tallaSel.value;
+
+  let detalle = [];
+  try { detalle = JSON.parse(opt.getAttribute('data-detalle') || '[]'); }
+  catch(e) { console.warn('Error parseando detalle de stock:', e); }
+
+  colorSel.innerHTML = '';
+  document.getElementById(`color-stock-info-${idx}`).innerHTML = '';
+
+  if (!talla) {
+    colorSel.innerHTML = '<option value="">— Seleccione talla primero —</option>';
+    recalcularTodo();
+    return;
+  }
+
+  const combos = detalle.filter(d => d.talla === talla);
+  if (combos.length === 0) {
+    colorSel.innerHTML = '<option value="">— Sin stock para esta talla —</option>';
+    recalcularTodo();
+    return;
+  }
+
+  combos.forEach(c => {
+    const label = c.color ? c.color : 'Único color';
+    const stockInfo = ` (Stock: ${c.stock})`;
+    colorSel.innerHTML += `<option value="${c.color}" data-color-stock="${c.stock}">${label}${stockInfo}</option>`;
+  });
+
+  // Si solo hay una combinación para esta talla, selecciónala automáticamente
+  if (combos.length === 1) {
+    colorSel.selectedIndex = 0;
+    validarColorStock(idx);
+  }
+
+  recalcularTodo();
+}
+
+// ------------------------------------------------------------------
+// Validar stock general del producto (límite superior grueso)
 // ------------------------------------------------------------------
 function validarStock(idx) {
   const sel = document.getElementById(`prod-sel-${idx}`);
@@ -378,24 +426,23 @@ function validarStock(idx) {
 }
 
 // ------------------------------------------------------------------
-// Validar stock por color
+// Validar stock exacto de la combinación talla+color elegida
 // ------------------------------------------------------------------
 function validarColorStock(idx) {
   const colorSel = document.getElementById(`color-sel-${idx}`);
   const opt  = colorSel?.selectedOptions[0];
   const info = document.getElementById(`color-stock-info-${idx}`);
-  if (!opt || !opt.value) { if (info) info.innerHTML = ''; return; }
+  if (!opt || opt.dataset.colorStock === undefined) { if (info) info.innerHTML = ''; return; }
 
-  const colorStock = opt.dataset.colorStock;
-  if (colorStock !== '') {
-    const s = parseInt(colorStock);
-    let cls = 'stock-ok', txt = `Disponible: ${s}`;
-    if (s === 0)     { cls = 'stock-agotado'; txt = 'Agotado en este color'; }
-    else if (s <= 3) { cls = 'stock-bajo';    txt = `Stock bajo: ${s}`; }
-    info.innerHTML = `<span class="stock-badge ${cls}">${txt}</span>`;
-    const qtyInput = document.getElementById(`qty-${idx}`);
-    if (s > 0 && parseInt(qtyInput.value) > s) qtyInput.value = s;
-  }
+  const s = parseInt(opt.dataset.colorStock) || 0;
+  let cls = 'stock-ok', txt = `Disponible: ${s}`;
+  if (s === 0)     { cls = 'stock-agotado'; txt = 'Agotado en esta combinación'; }
+  else if (s <= 3) { cls = 'stock-bajo';    txt = `Stock bajo: ${s}`; }
+  info.innerHTML = `<span class="stock-badge ${cls}">${txt}</span>`;
+
+  const qtyInput = document.getElementById(`qty-${idx}`);
+  if (s > 0 && parseInt(qtyInput.value) > s) qtyInput.value = s;
+  qtyInput.max = s || 9999;
 }
 
 // ------------------------------------------------------------------
@@ -440,13 +487,12 @@ function recalcularTodo() {
 }
 
 // ------------------------------------------------------------------
-// Init — limpiar lo que main.js pudo haber insertado y quedar en cero
+// Init
 // ------------------------------------------------------------------
 (function init() {
   const lista = document.getElementById('items-lista');
   if (lista) lista.innerHTML = '';
   _ventaItemIndex = 0;
-  // No se agrega ningún item automáticamente; el usuario usa el botón.
 })();
 </script>
 {% endblock %}

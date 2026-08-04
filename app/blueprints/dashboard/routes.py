@@ -6,8 +6,7 @@ from flask_login import login_required
 from sqlalchemy import func, and_
 
 from app.extensions import db
-from app.models import (Product, Category, Sale, SaleItem, Client, Order,
-                         ProductColorStock)
+from app.models import (Product, Category, Sale, SaleItem, Client, Order)
 
 bp = Blueprint('dashboard', __name__)
 

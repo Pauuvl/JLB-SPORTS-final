@@ -10,11 +10,21 @@ como alias de `id` en el mixin base para que las plantillas Jinja2
 """
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from zoneinfo import ZoneInfo
 
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app.extensions import db
+
+_BOGOTA = ZoneInfo('America/Bogota')
+
+
+def now_co():
+    """Hora actual en Bogotá (UTC-5), sin importar la zona horaria del
+    servidor (Render corre en UTC). Se guarda "naive" (sin tzinfo) porque
+    todo el proyecto trabaja con horas locales, igual que el Django original."""
+    return datetime.now(_BOGOTA).replace(tzinfo=None)
 
 
 class PkMixin:
@@ -40,7 +50,7 @@ class User(db.Model, UserMixin, PkMixin):
     is_active = db.Column(db.Boolean, default=True)
     is_superuser = db.Column(db.Boolean, default=False)
     is_staff = db.Column(db.Boolean, default=False)
-    date_joined = db.Column(db.DateTime, default=datetime.now)
+    date_joined = db.Column(db.DateTime, default=now_co)
     last_login = db.Column(db.DateTime, nullable=True)
 
     def set_password(self, raw_password):
@@ -116,7 +126,7 @@ class Product(db.Model, PkMixin):
     sale_price = db.Column(db.Numeric(10, 2), nullable=False)
     stock_quantity = db.Column(db.Integer, default=0, nullable=False)
     min_stock = db.Column(db.Integer, default=5, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=now_co)
 
     category = db.relationship('Category', back_populates='products')
     stocks = db.relationship(
@@ -208,7 +218,7 @@ class Client(db.Model, PkMixin):
     address = db.Column(db.Text, default='')
     discount_percent = db.Column(db.Numeric(5, 2), default=0)
     notes = db.Column(db.Text, default='')
-    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=now_co)
 
     sales = db.relationship('Sale', back_populates='client')
     orders = db.relationship('Order', back_populates='client')
@@ -244,7 +254,7 @@ class Sale(db.Model, PkMixin):
     notes = db.Column(db.Text, default='')
     total_amount = db.Column(db.Numeric(12, 2), default=0)
     discount_applied = db.Column(db.Numeric(5, 2), default=0)
-    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=now_co)
 
     client = db.relationship('Client', back_populates='sales')
     items = db.relationship('SaleItem', back_populates='sale', cascade='all, delete-orphan')
@@ -314,7 +324,7 @@ class Order(db.Model, PkMixin):
     status = db.Column(db.String(20), default='pending')
     notes = db.Column(db.Text, default='')
     total_amount = db.Column(db.Numeric(12, 2), default=0)
-    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=now_co)
     confirmed_at = db.Column(db.DateTime, nullable=True)
 
     client = db.relationship('Client', back_populates='orders')
@@ -343,7 +353,7 @@ class Order(db.Model, PkMixin):
                 )
             product.stock_quantity -= item.quantity
         self.status = 'confirmed'
-        self.confirmed_at = datetime.now()
+        self.confirmed_at = now_co()
         db.session.commit()
 
 
@@ -378,7 +388,7 @@ class PriceList(db.Model, PkMixin):
     client_type = db.Column(db.String(20), default='')
     description = db.Column(db.Text, default='')
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=now_co)
 
     items = db.relationship('PriceListItem', back_populates='price_list', cascade='all, delete-orphan')
 
@@ -425,7 +435,7 @@ class Quote(db.Model, PkMixin):
     valid_days = db.Column(db.Integer, default=15)
     discount_applied = db.Column(db.Numeric(5, 2), default=0)
     total_amount = db.Column(db.Numeric(12, 2), default=0)
-    created_at = db.Column(db.DateTime, default=datetime.now)
+    created_at = db.Column(db.DateTime, default=now_co)
 
     client = db.relationship('Client', back_populates='quotes')
     items = db.relationship('QuoteItem', back_populates='quote', cascade='all, delete-orphan')

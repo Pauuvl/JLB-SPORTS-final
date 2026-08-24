@@ -6,7 +6,7 @@ from flask_login import login_required
 from sqlalchemy import func, and_
 
 from app.extensions import db
-from app.models import (Product, Category, Sale, SaleItem, Client, Order)
+from app.models import (Product, Category, Sale, SaleItem, Client, Order, now_co)
 
 bp = Blueprint('dashboard', __name__)
 
@@ -15,7 +15,7 @@ bp = Blueprint('dashboard', __name__)
 # Helpers
 # ══════════════════════════════════════════════════════════════════
 def _period_start(period):
-    now = datetime.now()
+    now = now_co()
     today = datetime(now.year, now.month, now.day)
     if period == 'today':
         return today
@@ -29,27 +29,36 @@ def _period_start(period):
 
 
 def _compute_kpis():
-    total_products = Product.query.count()
-    out_of_stock = Product.query.filter(Product.stock_quantity == 0).count()
-    low_stock_products = Product.query.filter(
-        Product.stock_quantity > 0, Product.stock_quantity <= Product.min_stock
-    ).all()
-    low_stock_count = len(low_stock_products)
-    total_inventory_value = sum((p.stock_value for p in Product.query.all()), Decimal('0'))
-
-    total_sales = Sale.query.filter_by(status='completed').count()
-    total_revenue = db.session.query(func.coalesce(func.sum(Sale.total_amount), 0)).filter(
-        Sale.status == 'completed'
-    ).scalar() or Decimal('0')
-
-    today_start = datetime(datetime.now().year, datetime.now().month, datetime.now().day)
+    now = now_co()
+    today_start = datetime(now.year, now.month, now.day)
     month_start = today_start.replace(day=1)
 
-    sales_today = Sale.query.filter(Sale.status == 'completed', Sale.created_at >= today_start).count()
-    sales_month = Sale.query.filter(Sale.status == 'completed', Sale.created_at >= month_start).count()
-    revenue_month = db.session.query(func.coalesce(func.sum(Sale.total_amount), 0)).filter(
-        Sale.status == 'completed', Sale.created_at >= month_start
-    ).scalar() or Decimal('0')
+    # ── Una sola consulta agregada para todo el inventario ──────────
+    inv_row = db.session.query(
+        func.count(Product.id),
+        func.coalesce(func.sum(func.cast(Product.stock_quantity == 0, db.Integer)), 0),
+        func.coalesce(func.sum(func.cast(
+            and_(Product.stock_quantity > 0, Product.stock_quantity <= Product.min_stock), db.Integer
+        )), 0),
+        func.coalesce(func.sum(Product.cost_price * Product.stock_quantity), 0),
+    ).first()
+    total_products, out_of_stock, low_stock_count, total_inventory_value = inv_row
+
+    low_stock_products = Product.query.filter(
+        Product.stock_quantity > 0, Product.stock_quantity <= Product.min_stock
+    ).order_by(Product.stock_quantity).all()
+
+    # ── Una sola consulta agregada para todas las métricas de ventas ─
+    sales_row = db.session.query(
+        func.count(Sale.id),
+        func.coalesce(func.sum(Sale.total_amount), 0),
+        func.coalesce(func.sum(func.cast(Sale.created_at >= today_start, db.Integer)), 0),
+        func.coalesce(func.sum(func.cast(Sale.created_at >= month_start, db.Integer)), 0),
+        func.coalesce(func.sum(
+            func.cast(Sale.created_at >= month_start, db.Integer) * Sale.total_amount
+        ), 0),
+    ).filter(Sale.status == 'completed').first()
+    total_sales, total_revenue, sales_today, sales_month, revenue_month = sales_row
 
     total_clients = Client.query.count()
     pending_orders = Order.query.filter_by(status='pending').count()
@@ -72,7 +81,7 @@ def _compute_kpis():
             'id': last_sale.id,
             'total_amount': float(last_sale.total_amount),
             'created_at': last_sale.created_at.strftime('%d/%m/%Y %H:%M'),
-            'client': last_sale.client.name if last_sale.client else 'Mostrador',
+            'client': last_sale.display_client,
         } if last_sale else None,
     }, low_stock_products
 
@@ -149,34 +158,47 @@ def api_top_products():
 @login_required
 def api_charts():
     """Datos para las gráficas Chart.js del panel de estadísticas."""
-    now = datetime.now()
+    now = now_co()
+    today = datetime(now.year, now.month, now.day)
 
-    # Ventas e ingresos de los últimos 14 días
+    # ── Ventas de los últimos 14 días: 1 sola consulta, se agrupa en Python ──
+    window_start_days = today - timedelta(days=13)
+    day_sales = Sale.query.filter(
+        Sale.status == 'completed', Sale.created_at >= window_start_days
+    ).with_entities(Sale.created_at).all()
+
+    counts_by_day = {}
+    for (created_at,) in day_sales:
+        key = created_at.date()
+        counts_by_day[key] = counts_by_day.get(key, 0) + 1
+
     days = []
     for i in range(13, -1, -1):
-        day = now - timedelta(days=i)
-        day_start = datetime(day.year, day.month, day.day)
-        day_end = day_start + timedelta(days=1)
-        count = Sale.query.filter(Sale.status == 'completed', Sale.created_at >= day_start,
-                                   Sale.created_at < day_end).count()
-        days.append({'label': day_start.strftime('%d/%m'), 'ventas': count})
+        day = (today - timedelta(days=i)).date()
+        days.append({'label': day.strftime('%d/%m'), 'ventas': counts_by_day.get(day, 0)})
 
-    # Ingresos de los últimos 12 meses
+    # ── Ingresos de los últimos 12 meses: 1 sola consulta, se agrupa en Python ──
+    first_month_start = datetime(today.year, today.month, 1)
+    for _ in range(11):
+        first_month_start = (first_month_start - timedelta(days=1)).replace(day=1)
+
+    month_sales = Sale.query.filter(
+        Sale.status == 'completed', Sale.created_at >= first_month_start
+    ).with_entities(Sale.created_at, Sale.total_amount).all()
+
+    agg_by_month = {}
+    for created_at, total_amount in month_sales:
+        key = (created_at.year, created_at.month)
+        rev, cnt = agg_by_month.get(key, (Decimal('0'), 0))
+        agg_by_month[key] = (rev + (total_amount or Decimal('0')), cnt + 1)
+
     months = []
-    for i in range(11, -1, -1):
-        m = now.month - i
-        y = now.year
-        while m <= 0:
-            m += 12
-            y -= 1
-        start = datetime(y, m, 1)
-        end = datetime(y + 1, 1, 1) if m == 12 else datetime(y, m + 1, 1)
-        revenue = db.session.query(func.coalesce(func.sum(Sale.total_amount), 0)).filter(
-            Sale.status == 'completed', Sale.created_at >= start, Sale.created_at < end
-        ).scalar() or 0
-        ventas = Sale.query.filter(Sale.status == 'completed', Sale.created_at >= start,
-                                    Sale.created_at < end).count()
-        months.append({'label': start.strftime('%b %Y'), 'ingresos': float(revenue), 'ventas': ventas})
+    cursor = first_month_start
+    for _ in range(12):
+        key = (cursor.year, cursor.month)
+        rev, cnt = agg_by_month.get(key, (Decimal('0'), 0))
+        months.append({'label': cursor.strftime('%b %Y'), 'ingresos': float(rev), 'ventas': cnt})
+        cursor = (cursor.replace(day=28) + timedelta(days=4)).replace(day=1)
 
     # Productos más vendidos (top 8, histórico)
     top_rows = (

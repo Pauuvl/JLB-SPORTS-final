@@ -3,6 +3,7 @@ from decimal import Decimal
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response
 from flask_login import login_required
+from sqlalchemy.orm import selectinload
 
 from app.extensions import db
 from app.models import Sale, SaleItem, Product, ProductStock, Client
@@ -44,7 +45,7 @@ def sale_list():
 @bp.route('/new/', methods=['GET', 'POST'])
 @login_required
 def sale_create():
-    products = Product.query.order_by(Product.name).all()
+    products = Product.query.options(selectinload(Product.stocks)).order_by(Product.name).all()
     clients = Client.query.order_by(Client.name).all()
 
     if request.method == 'POST':

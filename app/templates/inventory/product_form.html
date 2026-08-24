@@ -58,7 +58,12 @@
         <div class="form-grid">
           <div class="form-grupo">
             <label>Código del Producto</label>
-            <input type="text" name="codigo" value="{{ product.codigo|default('', true) }}" placeholder="Ej: JLB-001">
+            {% if product %}
+              <input type="text" value="{{ product.codigo }}" disabled style="background:var(--gris-fondo);font-weight:700;">
+              <span class="form-pista">Generado automáticamente, no se puede editar</span>
+            {% else %}
+              <input type="text" value="Se generará automáticamente (ej: jlb000001)" disabled style="background:var(--gris-fondo);color:var(--gris-texto);">
+            {% endif %}
           </div>
           <div class="form-grupo">
             <label>Categoría</label>

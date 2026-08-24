@@ -22,15 +22,15 @@
      class="filtro-btn {% if not stock_filter %}activo{% endif %}">
     Todos ({{ total_count }})
   </a>
-  <a href="?stock=bajo{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
+  <a href="?stock=bajo{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_marca %}&marca={{ selected_marca }}{% endif %}{% if selected_talla %}&talla={{ selected_talla }}{% endif %}"
      class="filtro-btn {% if stock_filter == 'bajo' %}activo{% endif %}">
     ⚠️ Stock Bajo ({{ low_count }})
   </a>
-  <a href="?stock=agotado{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
+  <a href="?stock=agotado{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_marca %}&marca={{ selected_marca }}{% endif %}{% if selected_talla %}&talla={{ selected_talla }}{% endif %}"
      class="filtro-btn {% if stock_filter == 'agotado' %}activo{% endif %}">
     🚫 Agotados ({{ out_count }})
   </a>
-  <a href="?stock=ok{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}"
+  <a href="?stock=ok{% if query %}&q={{ query }}{% endif %}{% if selected_category %}&category={{ selected_category }}{% endif %}{% if selected_marca %}&marca={{ selected_marca }}{% endif %}{% if selected_talla %}&talla={{ selected_talla }}{% endif %}"
      class="filtro-btn {% if stock_filter == 'ok' %}activo{% endif %}">
     ✅ Stock OK
   </a>
@@ -53,10 +53,24 @@
     {% endfor %}
   </select>
 
+  <select name="marca" style="width:auto;min-width:140px;" onchange="this.form.submit()">
+    <option value="">Todas las marcas</option>
+    {% for m in marcas %}
+    <option value="{{ m }}" {% if selected_marca == m %}selected{% endif %}>{{ m }}</option>
+    {% endfor %}
+  </select>
+
+  <select name="talla" style="width:auto;min-width:120px;" onchange="this.form.submit()">
+    <option value="">Todas las tallas</option>
+    {% for t in tallas %}
+    <option value="{{ t }}" {% if selected_talla == t %}selected{% endif %}>{{ t }}</option>
+    {% endfor %}
+  </select>
+
   {% if stock_filter %}<input type="hidden" name="stock" value="{{ stock_filter }}">{% endif %}
 
   <button type="submit" class="btn btn-outline">Buscar</button>
-  {% if query or selected_category or stock_filter %}
+  {% if query or selected_category or selected_marca or selected_talla or stock_filter %}
     <a href="{{ url_for('inventory.product_list') }}" class="btn btn-ghost">✕ Limpiar</a>
   {% endif %}
 </form>
@@ -73,7 +87,7 @@
           <th>Nombre del Producto</th>
           <th>Categoría</th>
           <th>Marca</th>
-          <th>Talla</th>
+          <th>Stock por Talla / Color</th>
           <th>Costo</th>
           <th>Precio Venta</th>
           <th>Margen</th>
@@ -92,6 +106,7 @@
           <!-- Nombre -->
           <td>
             <div class="bold">{{ p.name }}</div>
+            <div class="td-muted" style="font-size:0.72rem;font-family:monospace;margin-top:2px;">{{ p.codigo }}</div>
             {% if p.description %}
               <div class="td-muted" style="font-size:0.75rem;margin-top:2px;">{{ p.description|truncatechars(45) }}</div>
             {% endif %}
@@ -103,15 +118,18 @@
           <!-- Marca -->
           <td class="td-muted">{{ p.marca|default("—", true) }}</td>
 
-          <!-- Tallas -->
-          <td>
-            {% set tallas = p.get_tallas_lista() %}
-            {% if tallas %}
-              {% for t in tallas %}
-              <span class="badge badge-negro" style="font-size:0.7rem;padding:3px 8px;letter-spacing:0.5px;margin:1px;">
-                {{ t }}
-              </span>
-              {% endfor %}
+          <!-- Stock por talla/color -->
+          <td style="min-width:220px;">
+            {% if p.stocks %}
+              <div style="display:flex;flex-wrap:wrap;gap:4px;">
+                {% for s in p.stocks %}
+                <span class="badge {% if s.stock == 0 %}badge-rojo{% elif s.stock <= p.min_stock %}badge-amarillo{% else %}badge-verde{% endif %}"
+                      style="font-size:0.68rem;padding:2px 7px;white-space:nowrap;"
+                      title="Talla {{ s.talla }}{% if s.color %} · {{ s.color }}{% endif %}">
+                  {{ s.talla }}{% if s.color %}-{{ s.color }}{% endif %}: {{ s.stock }}
+                </span>
+                {% endfor %}
+              </div>
             {% else %}
               <span class="td-muted">—</span>
             {% endif %}
